@@ -1,0 +1,16 @@
+{
+  "name": "@supermuschel/cli",
+  "version": "0.1.0",
+  "bin": { "supermuschel": "./dist/main.js" },
+  "scripts": {
+    "build": "bun build src/main.ts --outfile dist/main.js --target bun --minify",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supermuschel/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}

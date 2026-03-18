@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "module": "CommonJS",
+    "outDir": "out"
+  },
+  "include": ["electron.vite.config.ts"]
+}
