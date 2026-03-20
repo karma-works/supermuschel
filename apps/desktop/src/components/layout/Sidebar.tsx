@@ -17,6 +17,8 @@ export function Sidebar() {
         paddingTop: 38,
         height: "100vh",
         overflow: "hidden",
+        // @ts-ignore electron-specific
+        WebkitAppRegion: "drag",
       }}
     >
       {/* App name */}
@@ -33,8 +35,9 @@ export function Sidebar() {
         Workspaces
       </div>
 
-      {/* Workspace list */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      {/* Workspace list — interactive, must opt out of drag */}
+      {/* @ts-ignore */}
+      <div style={{ flex: 1, overflowY: "auto", WebkitAppRegion: "no-drag" }}>
         {workspaces.map((ws) => (
           <WorkspaceSidebarEntry key={ws.id} workspace={ws} />
         ))}
@@ -55,8 +58,9 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* New workspace button */}
-      <div style={{ padding: "8px 12px 16px", borderTop: "1px solid var(--border)" }}>
+      {/* New workspace button — interactive, must opt out of drag */}
+      {/* @ts-ignore */}
+      <div style={{ padding: "8px 12px 16px", borderTop: "1px solid var(--border)", WebkitAppRegion: "no-drag" }}>
         <NewWorkspaceButton />
       </div>
     </aside>

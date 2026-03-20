@@ -3,3 +3,13 @@ dist
 .turbo
 out
 *.sb
+
+# Electron build outputs
+apps/desktop/release/
+apps/desktop/resources/bin/
+
+# CLI compiled binaries
+tools/supermuschel-cli/dist/
+
+# macOS
+.DS_Store

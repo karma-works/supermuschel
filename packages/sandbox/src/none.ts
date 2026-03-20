@@ -1,4 +1,4 @@
-import type { SandboxBackend, SpawnConfig } from "./index.js";
+import type { SandboxBackend, SandboxDiagnosis, SpawnConfig } from "./index.js";
 
 export class NoneBackend implements SandboxBackend {
   readonly level = 0 as const;
@@ -6,6 +6,10 @@ export class NoneBackend implements SandboxBackend {
 
   async available(): Promise<boolean> {
     return true;
+  }
+
+  async diagnose(): Promise<Omit<SandboxDiagnosis, "level" | "name">> {
+    return { available: true, fixable: false };
   }
 
   wrapSpawn(config: SpawnConfig): SpawnConfig {

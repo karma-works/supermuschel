@@ -32,6 +32,14 @@ export const sandboxRouter = t.router({
       return results;
     }),
 
+  /** Rich per-level diagnosis with fix instructions. */
+  getRequirements: t.procedure
+    .input(z.object({ projectPath: z.string() }))
+    .query(async ({ input }) => {
+      const manager = new SandboxManager(input.projectPath, homedir());
+      return manager.diagnoseAll();
+    }),
+
   testIsolation: t.procedure
     .input(z.object({ projectPath: z.string(), level: SandboxLevelSchema }))
     .mutation(async ({ input }) => {

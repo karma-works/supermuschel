@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="shellGrad" x1="30%" y1="100%" x2="70%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#a5b4fc"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e1117"/>
+      <stop offset="100%" stop-color="#181d26"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- App icon background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+
+  <!-- Subtle border -->
+  <rect width="512" height="512" rx="112" fill="none" stroke="#252d3d" stroke-width="2"/>
+
+  <!-- Main shell body — scallop fan from bottom hinge -->
+  <path d="
+    M 256 418
+    C 175 418 100 390 80 310
+    C 62 240 90 155 145 118
+    C 183 93 220 88 256 88
+    C 292 88 329 93 367 118
+    C 422 155 450 240 432 310
+    C 412 390 337 418 256 418
+    Z
+  " fill="url(#shellGrad)" filter="url(#glow)"/>
+
+  <!-- Shell inner highlight — lighter central zone -->
+  <path d="
+    M 256 395
+    C 190 395 130 372 115 305
+    C 102 248 124 178 170 148
+    C 203 127 230 122 256 122
+    C 282 122 309 127 342 148
+    C 388 178 410 248 397 305
+    C 382 372 322 395 256 395
+    Z
+  " fill="rgba(255,255,255,0.06)"/>
+
+  <!-- Radiating ribs from hinge point (bottom of shell) -->
+  <g stroke="rgba(255,255,255,0.18)" fill="none" stroke-linecap="round">
+    <!-- Center spine -->
+    <line x1="256" y1="418" x2="256" y2="88" stroke-width="2.5"/>
+    <!-- Left ribs -->
+    <path d="M 256 418 C 235 350 202 248 163 128" stroke-width="2"/>
+    <path d="M 256 418 C 222 358 178 268 122 178" stroke-width="1.7"/>
+    <path d="M 256 418 C 212 368 158 298  96 240" stroke-width="1.4"/>
+    <!-- Right ribs -->
+    <path d="M 256 418 C 277 350 310 248 349 128" stroke-width="2"/>
+    <path d="M 256 418 C 290 358 334 268 390 178" stroke-width="1.7"/>
+    <path d="M 256 418 C 300 368 354 298 416 240" stroke-width="1.4"/>
+  </g>
+
+  <!-- Scallop bumps at the top edge -->
+  <path d="
+    M 145 120
+    Q 175 98 205 92
+    Q 230 86 256 88
+    Q 282 86 307 92
+    Q 337 98 367 120
+  " fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Terminal prompt — centered in lower third of shell -->
+  <text
+    x="256" y="315"
+    font-family="'SF Mono', 'JetBrains Mono', Menlo, monospace"
+    font-size="88"
+    font-weight="600"
+    fill="white"
+    opacity="0.88"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    letter-spacing="-2">›_</text>
+
+  <!-- Subtle bottom shine -->
+  <ellipse cx="256" cy="408" rx="80" ry="8" fill="rgba(99,102,241,0.35)"/>
+</svg>

@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useSetAtom } from "jotai";
+import { selectedWorkspaceIdAtom } from "../../stores/atoms.js";
 import { NewWorkspaceModal } from "./NewWorkspaceModal.js";
 
 export function NewWorkspaceButton() {
   const [open, setOpen] = useState(false);
+  const setSelectedWorkspaceId = useSetAtom(selectedWorkspaceIdAtom);
 
   return (
     <>
@@ -39,7 +42,12 @@ export function NewWorkspaceButton() {
         New Workspace
       </button>
 
-      {open && <NewWorkspaceModal onClose={() => setOpen(false)} />}
+      {open && (
+        <NewWorkspaceModal
+          onClose={() => setOpen(false)}
+          onCreated={(id) => setSelectedWorkspaceId(id)}
+        />
+      )}
     </>
   );
 }

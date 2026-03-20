@@ -15,20 +15,6 @@ export function AppShell({ children }: AppShellProps) {
         overflow: "hidden",
       }}
     >
-      {/* macOS titlebar drag region */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 38,
-          // @ts-ignore electron-specific
-          WebkitAppRegion: "drag",
-          zIndex: 9999,
-        }}
-      />
-
       <Sidebar />
 
       <main

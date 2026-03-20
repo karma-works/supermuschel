@@ -9,7 +9,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
-    "db:migrate": "turbo run db:migrate --filter=desktop"
+    "db:migrate": "turbo run db:migrate --filter=desktop",
+    "postinstall": "chmod +x node_modules/.bun/node-pty@1.1.0/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null || true"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

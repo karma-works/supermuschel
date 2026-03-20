@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "bin": { "supermuschel": "./dist/main.js" },
   "scripts": {
-    "build": "bun build src/main.ts --outfile dist/main.js --target bun --minify",
+    "build": "bun build --compile src/main.ts --outfile dist/supermuschel",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

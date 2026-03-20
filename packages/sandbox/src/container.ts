@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
-import type { SandboxBackend, SpawnConfig } from "./index.js";
+import { basename } from "node:path";
+import type { SandboxBackend, SandboxDiagnosis, SpawnConfig } from "./index.js";
 
 type Runtime = "yolobox" | "podman" | "docker";
 
@@ -12,6 +13,10 @@ export class ContainerBackend implements SandboxBackend {
 
   constructor(private readonly projectPath: string) {}
 
+  getRuntime(): Runtime | null {
+    return this.runtime ?? this.detectRuntime();
+  }
+
   private detectRuntime(): Runtime | null {
     for (const rt of ["yolobox", "podman", "docker"] as Runtime[]) {
       try {
@@ -23,8 +28,26 @@ export class ContainerBackend implements SandboxBackend {
   }
 
   async available(): Promise<boolean> {
+    const d = await this.diagnose();
+    return d.available;
+  }
+
+  async diagnose(): Promise<Omit<SandboxDiagnosis, "level" | "name">> {
     this.runtime = this.detectRuntime();
-    return this.runtime !== null;
+    if (this.runtime) {
+      return { available: true, fixable: false };
+    }
+    const isMac = process.platform === "darwin";
+    return {
+      available: false,
+      reason:
+        "No container runtime found. Supermuschel needs Docker Desktop, Podman, or yolobox installed and on your PATH to use container isolation.",
+      fixable: true,
+      fixLabel: isMac ? "Install Docker Desktop" : "Docker install instructions",
+      fixUrl: isMac
+        ? "https://www.docker.com/products/docker-desktop/"
+        : "https://docs.docker.com/engine/install/",
+    };
   }
 
   wrapSpawn(config: SpawnConfig): SpawnConfig {
@@ -34,7 +57,7 @@ export class ContainerBackend implements SandboxBackend {
     if (runtime === "yolobox") {
       return {
         cmd: "yolobox",
-        args: [config.cmd, ...config.args],
+        args: [basename(config.cmd), ...config.args],
         opts: { ...config.opts, cwd: this.projectPath },
       };
     }

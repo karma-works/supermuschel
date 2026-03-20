@@ -1,14 +1,28 @@
 import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
 import { app } from "electron";
 import path from "node:path";
-import * as schema from "@supermuschel/shared";
 
 const dbPath = path.join(app.getPath("userData"), "supermuschel.db");
-const sqlite = new Database(dbPath);
+export const sqlite = new Database(dbPath);
 
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 
-export const db = drizzle(sqlite, { schema });
-export type DB = typeof db;
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS workspaces (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    project_path TEXT NOT NULL,
+    agent_type TEXT NOT NULL,
+    sandbox_level INTEGER DEFAULT 1,
+    sandbox_config TEXT,
+    status_badges TEXT,
+    progress REAL,
+    created_at INTEGER,
+    updated_at INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+`);

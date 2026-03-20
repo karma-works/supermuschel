@@ -4,14 +4,18 @@ directories:
   output: release
 files:
   - out/**
+extraResources:
+  - from: resources/bin/
+    to: bin/
+    filter:
+      - supermuschel
 mac:
   category: public.app-category.developer-tools
   target:
     - target: dmg
-      arch:
-        - arm64
-        - x64
   icon: resources/icon.icns
+  bundleVersion: "1"
+  minimumSystemVersion: "14.0"
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
@@ -24,9 +28,7 @@ dmg:
       y: 220
       type: link
       path: /Applications
-nsis:
-  oneClick: false
 publish:
   provider: github
-  owner: supermuschel
+  owner: karma-works
   repo: supermuschel

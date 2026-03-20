@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -7,17 +7,19 @@ import { trpc } from "../../lib/trpc.js";
 
 interface Props {
   agentId: string;
+  isActive?: boolean;
 }
 
-export function TerminalPane({ agentId }: Props) {
+export function TerminalPane({ agentId, isActive = true }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const [copyToast, setCopyToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const writeMutation = trpc.agent.write.useMutation();
   const resizeMutation = trpc.agent.resize.useMutation();
 
-  // Subscribe to agent output
   trpc.agent.output.useSubscription(
     { agentId },
     {
@@ -72,12 +74,10 @@ export function TerminalPane({ agentId }: Props) {
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Send input to agent
     term.onData((data) => {
       writeMutation.mutate({ agentId, data });
     });
 
-    // Handle resize
     term.onResize(({ cols, rows }) => {
       resizeMutation.mutate({ agentId, cols, rows });
     });
@@ -93,15 +93,51 @@ export function TerminalPane({ agentId }: Props) {
     };
   }, [agentId]);
 
+  // Re-fit when this terminal becomes the active tab
+  useEffect(() => {
+    if (isActive && fitAddonRef.current) {
+      requestAnimationFrame(() => fitAddonRef.current?.fit());
+    }
+  }, [isActive]);
+
+  function handleMouseUp() {
+    const selection = termRef.current?.getSelection();
+    if (!selection) return;
+    navigator.clipboard.writeText(selection).then(() => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      setCopyToast(true);
+      toastTimerRef.current = setTimeout(() => setCopyToast(false), 1800);
+    });
+  }
+
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "#181d26",
-        overflow: "hidden",
-      }}
-    />
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div
+        ref={containerRef}
+        onMouseUp={handleMouseUp}
+        style={{ width: "100%", height: "100%", background: "#181d26", overflow: "hidden" }}
+      />
+
+      {/* Copy toast */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 12,
+          right: 14,
+          padding: "4px 10px",
+          borderRadius: 5,
+          background: "rgba(99,102,241,0.85)",
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 500,
+          letterSpacing: "0.02em",
+          pointerEvents: "none",
+          transition: "opacity 0.2s ease",
+          opacity: copyToast ? 1 : 0,
+        }}
+      >
+        Copied
+      </div>
+    </div>
   );
 }

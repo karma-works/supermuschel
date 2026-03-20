@@ -4,9 +4,10 @@ import type { AgentType, SandboxLevel } from "@supermuschel/shared";
 
 interface Props {
   onClose: () => void;
+  onCreated?: (workspaceId: string) => void;
 }
 
-export function NewWorkspaceModal({ onClose }: Props) {
+export function NewWorkspaceModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [projectPath, setProjectPath] = useState("");
   const [agentType, setAgentType] = useState<AgentType>("claude");
@@ -14,10 +15,26 @@ export function NewWorkspaceModal({ onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
+  const recentProjects = trpc.workspace.recentProjects.useQuery();
+  const pickDirectory = trpc.workspace.pickDirectory.useMutation();
+
+  const fillPath = (path: string) => {
+    setProjectPath(path);
+    if (!name.trim()) {
+      const dirName = path.split("/").filter(Boolean).pop();
+      if (dirName) setName(dirName);
+    }
+  };
+
+  const handleBrowse = async () => {
+    const selected = await pickDirectory.mutateAsync();
+    if (selected) fillPath(selected);
+  };
 
   const createMutation = trpc.workspace.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (workspace) => {
       utils.workspace.list.invalidate();
+      onCreated?.(workspace.id);
       onClose();
     },
     onError: (err) => setError(err.message),
@@ -114,27 +131,95 @@ export function NewWorkspaceModal({ onClose }: Props) {
             />
           </label>
 
-          <label style={{ display: "block", marginBottom: 12 }}>
+          <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
               Project Path
             </span>
-            <input
-              value={projectPath}
-              onChange={(e) => setProjectPath(e.target.value)}
-              placeholder="/Users/you/my-project"
-              style={{
-                width: "100%",
-                padding: "8px 10px",
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                color: "var(--text-primary)",
-                fontSize: 13,
-                outline: "none",
-                fontFamily: "JetBrains Mono, monospace",
-              }}
-            />
-          </label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={projectPath}
+                onChange={(e) => setProjectPath(e.target.value)}
+                placeholder="/Users/you/my-project"
+                style={{
+                  flex: 1,
+                  padding: "8px 10px",
+                  background: "var(--bg-hover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  color: "var(--text-primary)",
+                  fontSize: 13,
+                  outline: "none",
+                  fontFamily: "JetBrains Mono, monospace",
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleBrowse}
+                disabled={pickDirectory.isPending}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-hover)",
+                  color: "var(--text-primary)",
+                  cursor: pickDirectory.isPending ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Browse...
+              </button>
+            </div>
+            {recentProjects.data && recentProjects.data.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                  Recent Projects
+                </span>
+                <div
+                  style={{
+                    maxHeight: 120,
+                    overflowY: "auto",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    background: "var(--bg-hover)",
+                  }}
+                >
+                  {recentProjects.data.map((path) => {
+                    const dirName = path.split("/").filter(Boolean).pop() ?? path;
+                    return (
+                      <div
+                        key={path}
+                        onClick={() => fillPath(path)}
+                        style={{
+                          padding: "6px 10px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid var(--border)",
+                          fontSize: 12,
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.background = "var(--bg-surface)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                        }}
+                      >
+                        <div style={{ fontWeight: 500, color: "var(--text-primary)" }}>{dirName}</div>
+                        <div
+                          style={{
+                            fontFamily: "JetBrains Mono, monospace",
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          {path}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>

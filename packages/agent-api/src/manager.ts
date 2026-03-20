@@ -20,6 +20,8 @@ export interface StartAgentOptions {
   sandboxLevel: SandboxLevel;
   sandboxManager: SandboxManager;
   supermushelBinPath: string;
+  /** If provided, bypasses default spawn logic (sandbox wrap + agent flags). */
+  commandOverride?: { cmd: string; args: string[] };
 }
 
 export class AgentManager extends EventEmitter {
@@ -36,24 +38,32 @@ export class AgentManager extends EventEmitter {
   }
 
   async start(opts: StartAgentOptions): Promise<AgentProcess> {
-    const { workspaceId, type, cwd, sandboxLevel, sandboxManager, supermushelBinPath } = opts;
+    const { workspaceId, type, cwd, sandboxLevel, sandboxManager, supermushelBinPath, commandOverride } = opts;
 
-    const binPath = await this.detectAgent(type);
-    if (!binPath) {
-      throw new Error(
-        `${type === "claude" ? "Claude Code" : "OpenCode"} is not installed. Install it first.`,
-      );
+    let spawnCmd: string;
+    let spawnArgs: string[];
+
+    if (commandOverride) {
+      spawnCmd = commandOverride.cmd;
+      spawnArgs = commandOverride.args;
+    } else {
+      const binPath = await this.detectAgent(type);
+      if (!binPath) {
+        throw new Error(
+          `${type === "claude" ? "Claude Code" : "OpenCode"} is not installed. Install it first.`,
+        );
+      }
+      const agentArgs = type === "claude" && sandboxLevel >= 1
+        ? ["--dangerously-skip-permissions"]
+        : [];
+      const wrapped = sandboxManager.wrapSpawn(sandboxLevel, {
+        cmd: binPath,
+        args: agentArgs,
+        opts: { cwd },
+      });
+      spawnCmd = wrapped.cmd;
+      spawnArgs = wrapped.args;
     }
-
-    const agentArgs = type === "claude" && sandboxLevel >= 1
-      ? ["--dangerously-skip-permissions"]
-      : [];
-
-    const wrapped = sandboxManager.wrapSpawn(sandboxLevel, {
-      cmd: binPath,
-      args: agentArgs,
-      opts: { cwd },
-    });
 
     // Inject supermuschel binary into PATH
     const env = {
@@ -63,7 +73,7 @@ export class AgentManager extends EventEmitter {
       PATH: `${supermushelBinPath}:${process.env.PATH}`,
     };
 
-    const terminal = pty.spawn(wrapped.cmd, wrapped.args, {
+    const terminal = pty.spawn(spawnCmd, spawnArgs, {
       name: "xterm-256color",
       cols: 220,
       rows: 50,
