@@ -1,6 +1,5 @@
-import { trpc } from "../../lib/trpc.js";
 import type { SandboxLevel } from "@supermuschel/shared";
-import type { SerializedWorkspace } from "../../lib/types.js";
+import { trpc } from "../../lib/trpc.js";
 
 declare global {
   interface Window {
@@ -9,7 +8,9 @@ declare global {
 }
 
 interface Props {
-  workspace: SerializedWorkspace;
+  currentLevel: SandboxLevel;
+  projectPath: string;
+  onSelect: (level: SandboxLevel) => void;
   onClose: () => void;
 }
 
@@ -51,22 +52,13 @@ const STATUS_COLORS = {
   loading: "#6b7280",
 };
 
-export function SandboxSelector({ workspace, onClose }: Props) {
-  const utils = trpc.useUtils();
-  const updateMutation = trpc.workspace.update.useMutation({
-    onSuccess: () => {
-      utils.workspace.list.invalidate();
-      onClose();
-    },
-  });
-
-  const { data: requirements, isLoading } = trpc.sandbox.getRequirements.useQuery({
-    projectPath: workspace.projectPath,
-  });
+export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }: Props) {
+  const { data: requirements, isLoading } = trpc.sandbox.getRequirements.useQuery({ projectPath });
 
   const handleSelect = (level: SandboxLevel, available: boolean) => {
     if (!available) return;
-    updateMutation.mutate({ id: workspace.id, sandboxLevel: level });
+    onSelect(level);
+    onClose();
   };
 
   return (
@@ -96,16 +88,16 @@ export function SandboxSelector({ workspace, onClose }: Props) {
         }}
       >
         <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>
-          Sandbox Settings
+          Sandbox for New Sessions
         </h3>
         <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 }}>
-          Sandboxing controls what the AI agent is allowed to access on your system. A higher level
-          means more protection, but requires more software to be installed.
+          Choose the isolation level for the next terminal session you start. Each session can use a
+          different sandbox — existing sessions are not affected.
         </p>
 
         {LEVELS.map((opt) => {
           const diag = requirements?.find((r) => r.level === opt.level);
-          const isActive = workspace.sandboxLevel === opt.level;
+          const isActive = currentLevel === opt.level;
           const isAvailable = diag?.available ?? !isLoading;
           const isPending = isLoading && !diag;
 
@@ -153,7 +145,7 @@ export function SandboxSelector({ workspace, onClose }: Props) {
                         borderRadius: 4,
                       }}
                     >
-                      Active
+                      Selected
                     </span>
                   )}
                 </div>

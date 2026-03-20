@@ -69,7 +69,9 @@ export function TerminalPane({ agentId, isActive = true }: Props) {
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
     term.open(containerRef.current);
-    fitAddon.fit();
+    // Defer fit until the browser has finished layout (double rAF ensures two
+    // paint cycles — enough for the flex/absolute container to settle its size).
+    requestAnimationFrame(() => requestAnimationFrame(() => fitAddon.fit()));
 
     termRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -93,10 +95,10 @@ export function TerminalPane({ agentId, isActive = true }: Props) {
     };
   }, [agentId]);
 
-  // Re-fit when this terminal becomes the active tab
+  // Re-fit when this terminal becomes the active tab (double rAF for layout settle)
   useEffect(() => {
     if (isActive && fitAddonRef.current) {
-      requestAnimationFrame(() => fitAddonRef.current?.fit());
+      requestAnimationFrame(() => requestAnimationFrame(() => fitAddonRef.current?.fit()));
     }
   }, [isActive]);
 

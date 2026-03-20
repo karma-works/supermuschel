@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
+import type { SandboxLevel } from "@supermuschel/shared";
 import { trpc } from "../../lib/trpc.js";
 import { TerminalPane } from "../terminal/TerminalPane.js";
 import { SandboxSelector } from "../sandbox/SandboxSelector.js";
@@ -12,6 +13,14 @@ import {
   type WorkspaceSessionState,
 } from "../../stores/atoms.js";
 import type { SerializedWorkspace } from "../../lib/types.js";
+
+// ─── Sandbox level display helpers ────────────────────────────────────────────
+
+const SANDBOX_SHORT: Record<number, { label: string; color: string }> = {
+  0: { label: "None", color: "var(--sandbox-none)" },
+  1: { label: "OS", color: "var(--sandbox-os)" },
+  2: { label: "Ctr", color: "var(--sandbox-container)" },
+};
 
 // ─── Top-level: workspace selection ───────────────────────────────────────────
 
@@ -83,6 +92,12 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
   const [showSandboxSettings, setShowSandboxSettings] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
+  // Sandbox level for the NEXT session to be started. Persists in local state;
+  // initialized from the workspace's stored default.
+  const [pendingSandboxLevel, setPendingSandboxLevel] = useState<SandboxLevel>(
+    () => (workspace.sandboxLevel ?? 1) as SandboxLevel,
+  );
+
   const wsId = workspace.id;
   const wsState: WorkspaceSessionState = allSessions[wsId] ?? { sessions: [], activeAgentId: null };
   const { sessions, activeAgentId } = wsState;
@@ -107,10 +122,15 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
     });
   }
 
-  function addSession(agentId: string) {
+  function addSession(agentId: string, sandboxLevel: SandboxLevel) {
     setAllSessions((prev) => {
       const state = prev[wsId] ?? { sessions: [], activeAgentId: null };
-      const newSession: AgentSession = { agentId, status: "running", startedAt: Date.now() };
+      const newSession: AgentSession = {
+        agentId,
+        status: "starting",
+        startedAt: Date.now(),
+        sandboxLevel,
+      };
       return {
         ...prev,
         [wsId]: {
@@ -148,28 +168,29 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
     { enabled: !!workspace },
   );
 
-  const activeSandboxDiag = sandboxRequirements?.find(
-    (r) => r.level === (workspace.sandboxLevel ?? 1),
-  );
+  const pendingSandboxDiag = sandboxRequirements?.find((r) => r.level === pendingSandboxLevel);
+  const sandboxUnavailable = pendingSandboxDiag?.available === false;
 
-  const startMutation = trpc.agent.start.useMutation({
-    onSuccess: (data) => {
-      setStartError(null);
-      addSession(data.agentId);
-    },
-    onError: (err) => setStartError(err.message),
-  });
-
-  const stopMutation = trpc.agent.stop.useMutation();
+  const startMutation = trpc.agent.start.useMutation();
 
   function handleStart() {
-    startMutation.mutate({
-      workspaceId: wsId,
-      type: workspace.agentType,
-      cwd: workspace.projectPath,
-      sandboxLevel: (workspace.sandboxLevel ?? 1) as 0 | 1 | 2,
-    });
+    const level = pendingSandboxLevel;
+    setStartError(null);
+    startMutation.mutate(
+      {
+        workspaceId: wsId,
+        type: workspace.agentType,
+        cwd: workspace.projectPath,
+        sandboxLevel: level,
+      },
+      {
+        onSuccess: (data) => addSession(data.agentId, level),
+        onError: (err) => setStartError(err.message),
+      },
+    );
   }
+
+  const stopMutation = trpc.agent.stop.useMutation();
 
   function handleCloseTab(agentId: string) {
     const session = sessions.find((s) => s.agentId === agentId);
@@ -179,7 +200,6 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
     removeSession(agentId);
   }
 
-  const sandboxUnavailable = activeSandboxDiag?.available === false;
   const canStart = !startMutation.isPending && !sandboxUnavailable;
 
   return (
@@ -200,7 +220,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
         >
           {sessions.map((session, i) => {
             const isTab = session.agentId === activeAgentId;
-            const dotColor =
+            const statusColor =
               session.status === "running"
                 ? "var(--sandbox-os)"
                 : session.status === "starting"
@@ -208,6 +228,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
                   : session.status === "crashed"
                     ? "#ef4444"
                     : "var(--text-muted)";
+            const sb = SANDBOX_SHORT[session.sandboxLevel] ?? SANDBOX_SHORT[0];
 
             return (
               <div
@@ -216,7 +237,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
+                  gap: 5,
                   padding: "0 10px",
                   cursor: "pointer",
                   borderRight: "1px solid var(--border)",
@@ -228,7 +249,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
                   whiteSpace: "nowrap",
                   flexShrink: 0,
                   transition: "background 0.1s",
-                  minWidth: 100,
+                  minWidth: 120,
                   userSelect: "none",
                 }}
                 onMouseEnter={(e) => {
@@ -238,16 +259,30 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
                   if (!isTab) (e.currentTarget as HTMLDivElement).style.background = "transparent";
                 }}
               >
+                {/* Status dot */}
                 <div
                   style={{
-                    width: 7,
-                    height: 7,
+                    width: 6,
+                    height: 6,
                     borderRadius: "50%",
-                    background: dotColor,
+                    background: statusColor,
                     flexShrink: 0,
                   }}
                 />
                 <span>Session {i + 1}</span>
+                {/* Sandbox level indicator */}
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 600,
+                    color: sb.color,
+                    letterSpacing: "0.02em",
+                    opacity: 0.85,
+                    flexShrink: 0,
+                  }}
+                >
+                  {sb.label}
+                </span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -255,7 +290,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
                   }}
                   title={session.status === "running" ? "Stop and close" : "Close"}
                   style={{
-                    marginLeft: 2,
+                    marginLeft: 1,
                     width: 16,
                     height: 16,
                     borderRadius: 3,
@@ -329,7 +364,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
               gap: 12,
             }}
           >
-            {sandboxUnavailable && activeSandboxDiag && (
+            {sandboxUnavailable && pendingSandboxDiag && (
               <div
                 style={{
                   maxWidth: 360,
@@ -341,10 +376,10 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
                 }}
               >
                 <p style={{ fontSize: 12, color: "#fca5a5", fontWeight: 600, marginBottom: 4 }}>
-                  ✕ Sandbox unavailable: {activeSandboxDiag.name}
+                  ✕ Sandbox unavailable: {pendingSandboxDiag.name}
                 </p>
                 <p style={{ fontSize: 11, color: "#fca5a5", lineHeight: 1.5, marginBottom: 8 }}>
-                  {activeSandboxDiag.reason}
+                  {pendingSandboxDiag.reason}
                 </p>
                 <button
                   onClick={() => setShowSandboxSettings(true)}
@@ -420,7 +455,9 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
           flexShrink: 0,
         }}
       >
-        <SandboxBadge level={workspace.sandboxLevel ?? 0} />
+        {/* Next session sandbox selector */}
+        <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>Next:</span>
+        <SandboxBadge level={pendingSandboxLevel} />
         <span style={{ opacity: 0.5 }}>|</span>
         <span
           style={{
@@ -462,7 +499,12 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
       </div>
 
       {showSandboxSettings && (
-        <SandboxSelector workspace={workspace} onClose={() => setShowSandboxSettings(false)} />
+        <SandboxSelector
+          currentLevel={pendingSandboxLevel}
+          projectPath={workspace.projectPath}
+          onSelect={setPendingSandboxLevel}
+          onClose={() => setShowSandboxSettings(false)}
+        />
       )}
     </div>
   );

@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { trpc } from "../../lib/trpc.js";
 import type { SerializedWorkspace } from "../../lib/types.js";
-import { SandboxBadge } from "../sandbox/SandboxBadge.js";
 import { selectedWorkspaceIdAtom, workspaceSessionsAtom } from "../../stores/atoms.js";
 
 interface Props {
@@ -142,9 +141,8 @@ export function WorkspaceSidebarEntry({ workspace }: Props) {
         </div>
       )}
 
-      {/* Sandbox + agent badges */}
+      {/* Agent type badge */}
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-        <SandboxBadge level={workspace.sandboxLevel ?? 0} />
         <span
           style={{
             fontSize: 10,

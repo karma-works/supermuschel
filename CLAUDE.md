@@ -90,6 +90,8 @@ supermuschel/
 
 When Level ≥ 1 is active, Claude Code is spawned with `--dangerously-skip-permissions` (the sandbox IS the safety boundary). This flag is NEVER passed at Level 0.
 
+**Sandbox level is per terminal session, not per workspace.** The status bar shows "Next: [badge]" — the level that will be applied when the user starts a new session. Existing sessions are unaffected by changes to the selector. Different sessions within the same workspace may run under different sandbox levels simultaneously. The tab bar shows each session's sandbox level abbreviation (None / OS / Ctr) in the tab label.
+
 ### Agent-Writable Sidebar
 Agents call the `supermuschel` CLI binary → writes JSON to Unix socket `/tmp/supermuschel-<workspaceId>.sock` (0600 perms) → Electron main process → tRPC subscription → React renderer.
 
