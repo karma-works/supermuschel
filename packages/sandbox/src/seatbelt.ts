@@ -1,10 +1,27 @@
 import { execSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SandboxBackend, SandboxDiagnosis, SpawnConfig } from "./index.js";
 
 const PROFILE_TEMPLATE_PATH = join(__dirname, "../profiles/seatbelt-default.sb");
+
+// Candidate directories to allow writes to, beyond the hard-coded ones.
+// Each is checked with existsSync before being added to the profile — a
+// (subpath ...) rule referencing a non-existent path causes SIGABRT.
+//
+// Security note: ~/.ssh, ~/.aws, ~/.gitconfig etc. sit OUTSIDE every subtree
+// listed here, so they remain protected even with these additions.
+const EXTRA_WRITE_CANDIDATES = [
+  // XDG directories — used by OpenCode (SQLite DB), and many Linux-ported tools
+  ".local",               // ~/.local/share/opencode, ~/.local/state/…
+  ".config",              // ~/.config/<tool>/
+  ".cache",               // ~/.cache/<tool>/
+  // macOS Library — used by Node.js, Electron helpers, and some CLI tools
+  // on macOS for caches and app-support data
+  join("Library", "Caches"),
+  join("Library", "Application Support"),
+];
 
 export class SeatbeltBackend implements SandboxBackend {
   readonly level = 1 as const;
@@ -51,11 +68,20 @@ export class SeatbeltBackend implements SandboxBackend {
     // sandbox-exec doesn't receive an empty subpath pattern.
     const tmpdirClean = (process.env.TMPDIR ?? tmpdir()).replace(/\/$/, "");
 
+    // Build optional write rules only for directories that actually exist.
+    // Non-existent paths in (subpath ...) rules cause SIGABRT from sandbox-exec.
+    const extraWritePaths = EXTRA_WRITE_CANDIDATES
+      .map((rel) => join(this.homePath, rel))
+      .filter(existsSync)
+      .map((p) => `(allow file-write* (subpath "${p}"))`)
+      .join("\n");
+
     const template = readFileSync(PROFILE_TEMPLATE_PATH, "utf8");
     const profile = template
       .replaceAll("{{PROJECT_PATH}}", this.projectPath)
       .replaceAll("{{HOME_PATH}}", this.homePath)
-      .replaceAll("{{TMPDIR}}", tmpdirClean);
+      .replaceAll("{{TMPDIR}}", tmpdirClean)
+      .replaceAll("{{EXTRA_WRITE_PATHS}}", extraWritePaths);
 
     const tmpDir = mkdtempSync(join(tmpdir(), "sm-"));
     const profilePath = join(tmpDir, "profile.sb");

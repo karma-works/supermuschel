@@ -25,6 +25,15 @@
   (subpath "{{TMPDIR}}")
   (subpath "{{HOME_PATH}}/.claude"))
 
+; ── App data directories ───────────────────────────────────────────────────────
+; Injected at profile-generation time for each directory that exists on this
+; machine. Keeps subpath rules from referencing non-existent paths (which would
+; cause SIGABRT). Covers XDG dirs (OpenCode SQLite DB, tool caches, configs)
+; and macOS Library dirs (Node.js tool caches, Electron helpers, etc.).
+; NOTE: ~/.ssh, ~/.aws, ~/.gitconfig etc. are NOT covered — they sit outside
+; all of these subtrees and remain protected.
+{{EXTRA_WRITE_PATHS}}
+
 ; ── Execution ─────────────────────────────────────────────────────────────────
 ; Allow executing any existing binary — agents run git, compilers, formatters,
 ; test runners, etc. Write restrictions prevent planting malicious binaries,
@@ -46,6 +55,7 @@
 (allow file-ioctl)
 (allow file-read-metadata)
 (allow file-read-xattr)
+(allow file-write-xattr)
 
 ; ── Sysctl ────────────────────────────────────────────────────────────────────
 (allow sysctl-read)
