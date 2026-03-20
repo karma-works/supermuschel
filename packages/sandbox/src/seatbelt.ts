@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import type { SandboxBackend, SandboxDiagnosis, SpawnConfig } from "./index.js";
 
 const PROFILE_TEMPLATE_PATH = join(__dirname, "../profiles/seatbelt-default.sb");
@@ -11,7 +11,6 @@ export class SeatbeltBackend implements SandboxBackend {
   readonly name = "macOS Seatbelt";
 
   private profilePath: string | null = null;
-  private profileAgentBinDir: string | null = null;
 
   constructor(
     private readonly projectPath: string,
@@ -45,30 +44,29 @@ export class SeatbeltBackend implements SandboxBackend {
     }
   }
 
-  private ensureProfile(agentBinDir: string): string {
-    // Regenerate if the agent binary dir changed
-    if (this.profilePath && this.profileAgentBinDir === agentBinDir) {
-      return this.profilePath;
-    }
+  private ensureProfile(): string {
+    if (this.profilePath) return this.profilePath;
+
+    // $TMPDIR on macOS is /var/folders/…/T/ — strip trailing slash so
+    // sandbox-exec doesn't receive an empty subpath pattern.
+    const tmpdirClean = (process.env.TMPDIR ?? tmpdir()).replace(/\/$/, "");
 
     const template = readFileSync(PROFILE_TEMPLATE_PATH, "utf8");
     const profile = template
       .replaceAll("{{PROJECT_PATH}}", this.projectPath)
       .replaceAll("{{HOME_PATH}}", this.homePath)
-      .replaceAll("{{AGENT_BIN_DIR}}", agentBinDir);
+      .replaceAll("{{TMPDIR}}", tmpdirClean);
 
     const tmpDir = mkdtempSync(join(tmpdir(), "sm-"));
     const profilePath = join(tmpDir, "profile.sb");
     writeFileSync(profilePath, profile, { mode: 0o600 });
 
     this.profilePath = profilePath;
-    this.profileAgentBinDir = agentBinDir;
     return profilePath;
   }
 
   wrapSpawn(config: SpawnConfig): SpawnConfig {
-    const agentBinDir = dirname(config.cmd);
-    const profilePath = this.ensureProfile(agentBinDir);
+    const profilePath = this.ensureProfile();
     return {
       cmd: "sandbox-exec",
       args: ["-f", profilePath, config.cmd, ...config.args],
@@ -82,7 +80,6 @@ export class SeatbeltBackend implements SandboxBackend {
         rmSync(this.profilePath, { recursive: true, force: true });
       } catch {}
       this.profilePath = null;
-      this.profileAgentBinDir = null;
     }
   }
 }

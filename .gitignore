@@ -2,7 +2,8 @@ node_modules
 dist
 .turbo
 out
-*.sb
+# Generated seatbelt profiles (written to /tmp at runtime, but exclude any that land here)
+/tmp/sm-*.sb
 
 # Electron build outputs
 apps/desktop/release/
