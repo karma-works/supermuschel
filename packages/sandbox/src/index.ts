@@ -2,8 +2,10 @@ import type { SpawnOptions } from "node:child_process";
 import type { SandboxLevel } from "@supermuschel/shared";
 import { ContainerBackend } from "./container.js";
 import { NoneBackend } from "./none.js";
+import { OsSandboxBackend } from "./os-sandbox.js";
 import { PolicyBackend } from "./policy.js";
 import { SeatbeltBackend } from "./seatbelt.js";
+import { BubblewrapBackend } from "./bubblewrap.js";
 
 export interface SpawnConfig {
   cmd: string;
@@ -39,7 +41,7 @@ export class SandboxManager {
 
   constructor(projectPath: string, homePath: string) {
     this.backends.set(0, new NoneBackend());
-    this.backends.set(1, new SeatbeltBackend(projectPath, homePath));
+    this.backends.set(1, new OsSandboxBackend(projectPath, homePath));
     this.backends.set(2, new ContainerBackend(projectPath));
     this.backends.set(3, new PolicyBackend());
   }
@@ -75,4 +77,4 @@ export class SandboxManager {
   }
 }
 
-export { NoneBackend, SeatbeltBackend, ContainerBackend, PolicyBackend };
+export { NoneBackend, OsSandboxBackend, SeatbeltBackend, BubblewrapBackend, ContainerBackend, PolicyBackend };

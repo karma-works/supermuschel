@@ -2,7 +2,7 @@
 
 ## What This Is
 
-**Supermuschel** is a macOS-only Electron desktop app that wraps Claude Code and OpenCode (SST) as AI agents, with first-class tiered sandboxing baked into the UI. The name is German for "super shell" (muschel = shell/clam). It is a clean-room MIT reimplementation inspired by the Apache 2.0 app Superset.
+**Supermuschel** is an Electron desktop app (macOS + Linux) that wraps Claude Code and OpenCode (SST) as AI agents, with first-class tiered sandboxing baked into the UI. The name is German for "super shell" (muschel = shell/clam). It is a clean-room MIT reimplementation inspired by the Apache 2.0 app Superset.
 
 **Phase 1 PoC differentiators:**
 1. **Supreme UI/UX** — dark/light adaptive, more premium than Conductor
@@ -61,7 +61,9 @@ supermuschel/
 │   │   ├── src/
 │   │   │   ├── index.ts
 │   │   │   ├── none.ts            # Level 0: passthrough
-│   │   │   ├── seatbelt.ts        # Level 1: macOS sandbox-exec
+│   │   │   ├── os-sandbox.ts      # Level 1: delegates to platform backend
+│   │   │   ├── seatbelt.ts        # Level 1 macOS: sandbox-exec (Seatbelt)
+│   │   │   ├── bubblewrap.ts      # Level 1 Linux: bwrap (Bubblewrap)
 │   │   │   └── container.ts       # Level 2: Docker/Podman
 │   │   └── profiles/
 │   │       └── seatbelt-default.sb
@@ -85,12 +87,12 @@ supermuschel/
 
 ### Sandbox Levels
 - **Level 0** — None (passthrough, `wrapSpawn` is identity)
-- **Level 1** — macOS Seatbelt (`sandbox-exec`), profile written to `/tmp/sm-<uuid>.sb`, deleted on stop
+- **Level 1** — OS-native sandbox via `OsSandboxBackend`: macOS uses Seatbelt (`sandbox-exec`, profile written to `/tmp/sm-<uuid>.sb`, deleted on stop); Linux uses Bubblewrap (`bwrap --ro-bind / /` with project dir writable)
 - **Level 2** — Container (Podman rootless preferred, Docker fallback, or yolobox if installed)
 
 When Level ≥ 1 is active, Claude Code is spawned with `--dangerously-skip-permissions` (the sandbox IS the safety boundary). This flag is NEVER passed at Level 0.
 
-**Sandbox level is per terminal session, not per workspace.** The status bar shows "Next: [badge]" — the level that will be applied when the user starts a new session. Existing sessions are unaffected by changes to the selector. Different sessions within the same workspace may run under different sandbox levels simultaneously. The tab bar shows each session's sandbox level abbreviation (None / OS / Ctr) in the tab label.
+**Sandbox level is per terminal session, not per workspace.** The status bar shows "Next: [badge]" — the level that will be applied when the user starts a new session. Existing sessions are unaffected by changes to the selector. Different sessions within the same workspace may run under different sandbox levels simultaneously. The tab bar shows each session's sandbox level abbreviation (None / OS / Ctr / Pol) in the tab label.
 
 ### Agent-Writable Sidebar
 Agents call the `supermuschel` CLI binary → writes JSON to Unix socket `/tmp/supermuschel-<workspaceId>.sock` (0600 perms) → Electron main process → tRPC subscription → React renderer.
@@ -194,7 +196,7 @@ bun run db:migrate           # run Drizzle migrations
 
 ## Scope Constraints
 
-- **macOS only** — do not add Linux/Windows code paths (Phase 2)
+- **No Windows** — Windows support is Phase 2
 - **Single workspace** — no worktree splitting (Phase 2)
 - **No cloud** — no auth, no sync, no ElectricSQL (Phase 2)
 - **No beads/cass/br** — task intelligence is Phase 2

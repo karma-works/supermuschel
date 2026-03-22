@@ -1,9 +1,9 @@
 <div align="center">
   <img src="resources/icon.svg" width="120" height="120" alt="Supermuschel logo"/>
   <h1>Supermuschel</h1>
-  <p><strong>A macOS AI agent terminal with first-class sandboxing</strong></p>
+  <p><strong>An AI agent terminal with first-class sandboxing</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/platform-macOS-black?style=flat-square&logo=apple" alt="macOS"/>
+    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-black?style=flat-square" alt="macOS | Linux"/>
     <img src="https://img.shields.io/badge/Electron-34-47848f?style=flat-square&logo=electron" alt="Electron"/>
     <img src="https://img.shields.io/badge/license-MIT-6366f1?style=flat-square" alt="MIT"/>
   </p>
@@ -15,13 +15,13 @@
 
 ---
 
-Supermuschel (_German: super shell_) is a macOS desktop app that wraps **Claude Code** and **OpenCode** as AI agent terminals with tiered sandboxing baked directly into the UI — the first tool in the market to ship "YOLO mode, home directory stays home" as a default.
+Supermuschel (_German: super shell_) is a desktop app that wraps **Claude Code** and **OpenCode** as AI agent terminals with tiered sandboxing baked directly into the UI — the first tool in the market to ship "YOLO mode, home directory stays home" as a default. Runs on macOS and Linux.
 
 ## Features
 
 - **Tiered sandboxing** — three levels, picked per workspace:
   - **None** — full system access (trusted projects only)
-  - **OS Sandbox** — macOS `sandbox-exec` (Seatbelt). Restricts the agent to the project directory; home dir is protected.
+  - **OS Sandbox** — macOS `sandbox-exec` (Seatbelt) or Linux `bwrap` (Bubblewrap). Restricts the agent to the project directory; home dir is protected.
   - **Container** — Podman rootless or Docker. Strongest isolation, separate filesystem.
 - **Agent-writable sidebar** — agents call the `supermuschel` CLI to push live status badges, progress bars, and flash animations into the UI without any polling.
 - **Claude Code + OpenCode** — detected automatically from `$PATH`.
@@ -44,7 +44,7 @@ supermuschel trigger-flash              # pulses the workspace card border
 | Level | Name | How | `--dangerously-skip-permissions` |
 |---|---|---|---|
 | 0 | None | passthrough | ❌ never |
-| 1 | OS Sandbox | `sandbox-exec -f profile.sb` | ✅ (sandbox is the boundary) |
+| 1 | OS Sandbox | macOS: `sandbox-exec -f profile.sb` · Linux: `bwrap --ro-bind / /` | ✅ (sandbox is the boundary) |
 | 2 | Container | `podman run` / `docker run` | ✅ |
 
 ## Tech stack
