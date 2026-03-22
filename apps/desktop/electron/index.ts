@@ -9,6 +9,7 @@ import { appRouter, uiEventEmitter } from "./ipc/router.js";
 import { createContext } from "./ipc/context.js";
 import { SocketServer } from "./socket/server.js";
 import { AgentManager } from "@supermuschel/agent-api";
+import { sonderaHarness } from "./agents/sondera.js";
 
 // Set name early so it appears correctly in native dialogs and menus
 app.setName("Supermuschel");
@@ -65,6 +66,14 @@ function setupMenu(): void {
     {
       label: "File",
       submenu: [
+        {
+          label: "Settings…",
+          accelerator: "CmdOrCtrl+,",
+          click: () => {
+            mainWindow?.webContents.send("navigate", "/settings");
+          },
+        },
+        { type: "separator" },
         { role: "close" },
       ],
     },
@@ -129,6 +138,9 @@ function createWindow(): void {
     },
   });
 
+  // electron-trpc only allows one handler per channel; remove stale one before re-registering
+  // (happens on macOS when the window is recreated after being closed without quitting)
+  ipcMain.removeHandler("sm-trpc-req");
   createIPCHandler({
     router: appRouter,
     windows: [mainWindow],
@@ -209,5 +221,6 @@ app.whenReady().then(async () => {
 app.on("window-all-closed", () => {
   agentManager.stopAll();
   socketServer?.stop();
+  void sonderaHarness.stop();
   if (process.platform !== "darwin") app.quit();
 });

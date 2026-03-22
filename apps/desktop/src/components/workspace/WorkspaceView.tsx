@@ -163,10 +163,16 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
     },
   );
 
+  const utils = trpc.useUtils();
   const { data: sandboxRequirements } = trpc.sandbox.getRequirements.useQuery(
     { projectPath: workspace.projectPath },
     { enabled: !!workspace },
   );
+
+  function handleSandboxSettingsClose() {
+    setShowSandboxSettings(false);
+    void utils.sandbox.getRequirements.invalidate({ projectPath: workspace.projectPath });
+  }
 
   const pendingSandboxDiag = sandboxRequirements?.find((r) => r.level === pendingSandboxLevel);
   const sandboxUnavailable = pendingSandboxDiag?.available === false;
@@ -503,7 +509,7 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
           currentLevel={pendingSandboxLevel}
           projectPath={workspace.projectPath}
           onSelect={setPendingSandboxLevel}
-          onClose={() => setShowSandboxSettings(false)}
+          onClose={handleSandboxSettingsClose}
         />
       )}
     </div>

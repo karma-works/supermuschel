@@ -13,3 +13,11 @@ contextBridge.exposeInMainWorld("trpcBridge", {
 contextBridge.exposeInMainWorld("shell", {
   openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
 });
+
+contextBridge.exposeInMainWorld("electronNav", {
+  onNavigate: (cb: (path: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, path: string) => cb(path);
+    ipcRenderer.on("navigate", handler);
+    return () => ipcRenderer.off("navigate", handler);
+  },
+});

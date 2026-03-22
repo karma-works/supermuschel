@@ -6,6 +6,8 @@ import { SandboxManager } from "@supermuschel/sandbox";
 import { CLAUDE_INSTALL_INSTRUCTIONS, OPENCODE_INSTALL_INSTRUCTIONS } from "@supermuschel/agent-api";
 import path from "node:path";
 import { app } from "electron";
+import { sonderaHarness } from "../agents/sondera.js";
+import { isSonderaInstalled, installHooks, uninstallHooks } from "../lib/sondera-installer.js";
 import { t } from "./trpc.js";
 import { AGENT_COMMAND_DEFAULTS } from "./settings.js";
 
@@ -58,12 +60,26 @@ export const agentRouter = t.router({
 
       // Pre-flight: verify sandbox level is actually available on this system.
       if (input.sandboxLevel > 0) {
-        const diagnosis = await sandboxManager.diagnose(input.sandboxLevel);
-        if (!diagnosis.available) {
-          throw new Error(
-            `Sandbox level ${input.sandboxLevel} (${diagnosis.name}) is not available: ${diagnosis.reason ?? "unknown reason"}. ` +
-              "Open ⚙ Sandbox Settings to choose a supported level.",
-          );
+        // Level 3 (Policy): ensure sondera is installed, harness is running, hooks are in place.
+        if (input.sandboxLevel === 3) {
+          if (!isSonderaInstalled()) {
+            throw new Error(
+              "Policy sandbox (Sondera) is not installed. " +
+                "Select the Policy tier in the sandbox selector to complete setup first.",
+            );
+          }
+          await sonderaHarness.ensureRunning();
+          // Install hooks into the project's .claude/settings.json (not global)
+          await installHooks(input.cwd);
+          sonderaHarness.incrementSession();
+        } else {
+          const diagnosis = await sandboxManager.diagnose(input.sandboxLevel);
+          if (!diagnosis.available) {
+            throw new Error(
+              `Sandbox level ${input.sandboxLevel} (${diagnosis.name}) is not available: ${diagnosis.reason ?? "unknown reason"}. ` +
+                "Open ⚙ Sandbox Settings to choose a supported level.",
+            );
+          }
         }
       }
 
@@ -106,6 +122,13 @@ export const agentRouter = t.router({
     .mutation(async ({ ctx, input }) => {
       const agent = ctx.agentManager.getAgent(input.agentId);
       const workspaceId = agent?.workspaceId;
+      if (agent?.sandboxLevel === 3) {
+        // Remove project-level hooks before stopping
+        await uninstallHooks(agent.cwd).catch((e) =>
+          console.warn("[agent] failed to uninstall hooks:", e),
+        );
+        sonderaHarness.decrementSession();
+      }
       ctx.agentManager.stop(input.agentId);
       if (workspaceId) {
         const remaining = ctx.agentManager.getAgentsForWorkspace(workspaceId);

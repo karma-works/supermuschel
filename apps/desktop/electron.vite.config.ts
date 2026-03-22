@@ -34,6 +34,9 @@ export default defineConfig({
     resolve: {
       alias: {
         "@renderer": path.resolve(__dirname, "src"),
+        // Point workspace packages to their TS source so Vite processes them
+        // as native ESM — avoids CJS __exportStar static-analysis failures.
+        "@supermuschel/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
       },
     },
     build: {

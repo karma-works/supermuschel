@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { SandboxLevel } from "@supermuschel/shared";
 import { trpc } from "../../lib/trpc.js";
+import { SonderaWizard } from "./SonderaWizard.js";
 
 declare global {
   interface Window {
@@ -20,6 +22,8 @@ const LEVELS: {
   description: string;
   yoloNote?: string;
   icon: string;
+  recommended?: boolean;
+  color?: string;
 }[] = [
   {
     level: 0,
@@ -33,7 +37,7 @@ const LEVELS: {
     label: "OS Sandbox (Seatbelt)",
     icon: "🔒",
     description:
-      "Uses macOS sandbox-exec to confine the agent to your project directory. Your home folder, SSH keys, and other personal files are off-limits. Recommended for most projects.",
+      "Uses macOS sandbox-exec to confine the agent to your project directory. Your home folder, SSH keys, and other personal files are off-limits.",
     yoloNote: "Agent runs with --dangerously-skip-permissions (the sandbox is the safety boundary).",
   },
   {
@@ -43,6 +47,15 @@ const LEVELS: {
     description:
       "Runs the agent inside a Docker or Podman container. Strongest isolation — the agent can't see your host filesystem at all. Requires a container runtime to be installed.",
     yoloNote: "Agent runs with --dangerously-skip-permissions inside the container.",
+  },
+  {
+    level: 3,
+    label: "Policy (Sondera)",
+    icon: "🛡️",
+    description:
+      "Cedar policy enforcement + YARA-X signature scanning intercept every agent tool call. Fast and lightweight — works with any agent and any OS. Optional LLM classifier for data-sensitivity tagging.",
+    recommended: true,
+    color: "#a855f7",
   },
 ];
 
@@ -54,12 +67,32 @@ const STATUS_COLORS = {
 
 export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }: Props) {
   const { data: requirements, isLoading } = trpc.sandbox.getRequirements.useQuery({ projectPath });
+  const { data: sonderaStatus } = trpc.sandbox.sondera.getStatus.useQuery();
+  const [showWizard, setShowWizard] = useState(false);
 
   const handleSelect = (level: SandboxLevel, available: boolean) => {
-    if (!available) return;
+    // Level 3 (Policy): if not installed, show wizard first
+    if (level === 3 && !sonderaStatus?.installed) {
+      setShowWizard(true);
+      return;
+    }
+    if (!available && level !== 3) return;
     onSelect(level);
     onClose();
   };
+
+  if (showWizard) {
+    return (
+      <SonderaWizard
+        onComplete={(_modelChoice) => {
+          setShowWizard(false);
+          onSelect(3);
+          onClose();
+        }}
+        onCancel={() => setShowWizard(false)}
+      />
+    );
+  }
 
   return (
     <div
@@ -97,9 +130,15 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
 
         {LEVELS.map((opt) => {
           const diag = requirements?.find((r) => r.level === opt.level);
+          // Level 3 (Policy): available if installed+harness running, OR not yet installed (clickable to setup)
+          const isPolicyLevel = opt.level === 3;
+          const policyInstalled = sonderaStatus?.installed ?? false;
           const isActive = currentLevel === opt.level;
-          const isAvailable = diag?.available ?? !isLoading;
-          const isPending = isLoading && !diag;
+          const isAvailable = isPolicyLevel
+            ? true // always clickable — wizard handles not-installed case
+            : (diag?.available ?? !isLoading);
+          const isPending = isLoading && !diag && !isPolicyLevel;
+          const accentColor = opt.color ?? "var(--accent)";
 
           return (
             <div
@@ -109,9 +148,9 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                 padding: "12px 14px",
                 marginBottom: 8,
                 borderRadius: 8,
-                border: `1px solid ${isActive ? "var(--accent)" : "var(--border)"}`,
-                background: isActive ? "rgba(99,102,241,0.08)" : "transparent",
-                cursor: isAvailable ? "pointer" : "default",
+                border: `1px solid ${isActive ? accentColor : "var(--border)"}`,
+                background: isActive ? `${accentColor}14` : "transparent",
+                cursor: "pointer",
                 opacity: isPending ? 0.6 : 1,
                 transition: "border-color 0.15s, background 0.15s",
               }}
@@ -122,9 +161,28 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                 <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>
                   {opt.label}
                 </span>
+                {opt.recommended && (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: accentColor,
+                      background: `${accentColor}20`,
+                      padding: "1px 5px",
+                      borderRadius: 3,
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    ★ RECOMMENDED
+                  </span>
+                )}
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
                   {isPending ? (
                     <span style={{ fontSize: 10, color: STATUS_COLORS.loading }}>Checking…</span>
+                  ) : isPolicyLevel && !policyInstalled ? (
+                    <span style={{ fontSize: 10, color: accentColor, fontWeight: 500 }}>
+                      ○ Setup required
+                    </span>
                   ) : isAvailable ? (
                     <span style={{ fontSize: 10, color: STATUS_COLORS.available, fontWeight: 500 }}>
                       ● Available
@@ -138,9 +196,9 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                     <span
                       style={{
                         fontSize: 10,
-                        color: "var(--accent)",
+                        color: accentColor,
                         fontWeight: 700,
-                        background: "rgba(99,102,241,0.15)",
+                        background: `${accentColor}25`,
                         padding: "1px 6px",
                         borderRadius: 4,
                       }}

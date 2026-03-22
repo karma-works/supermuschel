@@ -4,12 +4,61 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
+    "build:sondera": "cd /Users/hacr/git-repo/sondera-coding-agent-hooks && cargo build --release --target aarch64-apple-darwin --bin sondera-harness-server --bin sondera-claude && mkdir -p resources/bin && cp target/aarch64-apple-darwin/release/sondera-harness-server target/aarch64-apple-darwin/release/sondera-claude resources/bin/",
     "build": "electron-vite build",
     "build:cli": "cd ../../tools/supermuschel-cli && bun run build && mkdir -p ../../apps/desktop/resources/bin && cp dist/supermuschel ../../apps/desktop/resources/bin/supermuschel",
+    "dist": "bun run build && electron-builder",
+    "dist:mac": "bun run build && electron-builder --mac",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx electron/db/migrate.ts",
     "rebuild": "electron-rebuild -f -w node-pty,better-sqlite3"
+  },
+  "build": {
+    "appId": "ai.supermuschel.desktop",
+    "productName": "Supermuschel",
+    "copyright": "Copyright © 2026 Supermuschel contributors",
+    "asar": true,
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "out/**/*",
+      "!out/**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "resources/policies",
+        "to": "policies",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
+      "category": "public.app-category.developer-tools",
+      "icon": "resources/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Supermuschel",
+      "contents": [
+        { "x": 410, "y": 150, "type": "link", "path": "/Applications" },
+        { "x": 130, "y": 150, "type": "file" }
+      ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "supermuschel",
+      "repo": "supermuschel"
+    }
   },
   "dependencies": {
     "@supermuschel/agent-api": "workspace:*",

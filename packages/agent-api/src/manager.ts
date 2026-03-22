@@ -8,6 +8,8 @@ export interface AgentProcess {
   id: string;
   workspaceId: string;
   type: AgentType;
+  cwd: string;
+  sandboxLevel: SandboxLevel;
   pid: number;
   status: AgentStatus;
   pty: pty.IPty;
@@ -86,6 +88,8 @@ export class AgentManager extends EventEmitter {
       id,
       workspaceId,
       type,
+      cwd,
+      sandboxLevel,
       pid: terminal.pid,
       status: "starting",
       pty: terminal,

@@ -1,9 +1,12 @@
+import { useNavigate, useLocation } from "@tanstack/react-router";
 import { trpc } from "../../lib/trpc.js";
 import { WorkspaceSidebarEntry } from "../workspace/WorkspaceSidebarEntry.js";
 import { NewWorkspaceButton } from "../workspace/NewWorkspaceButton.js";
 
 export function Sidebar() {
   const { data: workspaces = [] } = trpc.workspace.list.useQuery();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <aside
@@ -58,10 +61,42 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* New workspace button — interactive, must opt out of drag */}
+      {/* Bottom bar: new workspace + settings — interactive, must opt out of drag */}
       {/* @ts-ignore */}
-      <div style={{ padding: "8px 12px 16px", borderTop: "1px solid var(--border)", WebkitAppRegion: "no-drag" }}>
-        <NewWorkspaceButton />
+      <div
+        style={{
+          padding: "8px 12px 16px",
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          // @ts-ignore electron-specific
+          WebkitAppRegion: "no-drag",
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <NewWorkspaceButton />
+        </div>
+        <button
+          onClick={() => navigate({ to: location.pathname === "/settings" ? "/" : "/settings" })}
+          title="Settings (⌘,)"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 7,
+            border: `1px solid ${location.pathname === "/settings" ? "var(--accent)" : "var(--border)"}`,
+            background: location.pathname === "/settings" ? "var(--accent-subtle)" : "transparent",
+            color: location.pathname === "/settings" ? "var(--accent)" : "var(--text-muted)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 15,
+            flexShrink: 0,
+          }}
+        >
+          ⚙
+        </button>
       </div>
     </aside>
   );

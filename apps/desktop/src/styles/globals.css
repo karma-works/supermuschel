@@ -14,6 +14,7 @@
   --sandbox-none: #6b7280;
   --sandbox-os: #22c55e;
   --sandbox-container: #3b82f6;
+  --sandbox-policy: #a855f7;
   --flash-border: #6366f1;
 }
 
@@ -31,6 +32,7 @@
     --sandbox-none: #9ca3af;
     --sandbox-os: #16a34a;
     --sandbox-container: #2563eb;
+    --sandbox-policy: #9333ea;
     --flash-border: #6366f1;
   }
 }

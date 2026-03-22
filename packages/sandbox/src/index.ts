@@ -2,6 +2,7 @@ import type { SpawnOptions } from "node:child_process";
 import type { SandboxLevel } from "@supermuschel/shared";
 import { ContainerBackend } from "./container.js";
 import { NoneBackend } from "./none.js";
+import { PolicyBackend } from "./policy.js";
 import { SeatbeltBackend } from "./seatbelt.js";
 
 export interface SpawnConfig {
@@ -40,6 +41,7 @@ export class SandboxManager {
     this.backends.set(0, new NoneBackend());
     this.backends.set(1, new SeatbeltBackend(projectPath, homePath));
     this.backends.set(2, new ContainerBackend(projectPath));
+    this.backends.set(3, new PolicyBackend());
   }
 
   getBackend(level: SandboxLevel): SandboxBackend {
@@ -59,7 +61,7 @@ export class SandboxManager {
   }
 
   async diagnoseAll(): Promise<SandboxDiagnosis[]> {
-    const levels = [0, 1, 2] as const;
+    const levels = [0, 1, 2, 3] as const;
     return Promise.all(levels.map((l) => this.diagnose(l)));
   }
 
@@ -73,4 +75,4 @@ export class SandboxManager {
   }
 }
 
-export { NoneBackend, SeatbeltBackend, ContainerBackend };
+export { NoneBackend, SeatbeltBackend, ContainerBackend, PolicyBackend };
