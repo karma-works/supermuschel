@@ -27,6 +27,9 @@ jobs:
         run: |
           find node_modules -path "*/node-pty/prebuilds/darwin-*/spawn-helper" -exec chmod +x {} \;
 
+      - name: Install Python setuptools (distutils removed in Python 3.12+)
+        run: pip3 install setuptools
+
       - name: Rebuild native modules
         run: cd apps/desktop && bun run rebuild
 

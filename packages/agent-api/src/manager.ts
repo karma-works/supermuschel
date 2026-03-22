@@ -55,14 +55,15 @@ export class AgentManager extends EventEmitter {
           `${type === "claude" ? "Claude Code" : "OpenCode"} is not installed. Install it first.`,
         );
       }
-      const agentArgs = type === "claude" && sandboxLevel >= 1
-        ? ["--dangerously-skip-permissions"]
-        : [];
-      const wrapped = sandboxManager.wrapSpawn(sandboxLevel, {
-        cmd: binPath,
-        args: agentArgs,
-        opts: { cwd },
-      });
+      const agentArgs = sandboxLevel >= 1 ? ["--dangerously-skip-permissions"] : [];
+      // Claude Code manages its own Seatbelt sandbox internally on macOS.
+      // Wrapping it in another sandbox-exec causes intersecting policies that
+      // abort startup silently. Skip the OS-level wrap for claude at Level 1;
+      // claude's built-in bash tool sandboxing is still the safety boundary.
+      const skipOsWrap = type === "claude" && sandboxLevel === 1;
+      const wrapped = skipOsWrap
+        ? { cmd: binPath, args: agentArgs, opts: { cwd } }
+        : sandboxManager.wrapSpawn(sandboxLevel, { cmd: binPath, args: agentArgs, opts: { cwd } });
       spawnCmd = wrapped.cmd;
       spawnArgs = wrapped.args;
     }
