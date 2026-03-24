@@ -34,6 +34,8 @@ export class SeatbeltBackend implements SandboxBackend {
     private readonly homePath: string,
   ) {}
 
+  getProfilePath(): string | null { return this.profilePath; }
+
   async available(): Promise<boolean> {
     const d = await this.diagnose();
     return d.available;

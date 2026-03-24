@@ -1,5 +1,6 @@
 import { atom } from "jotai";
-import type { SandboxLevel } from "@supermuschel/shared";
+import { atomFamily } from "jotai/utils";
+import type { SandboxLevel, SandboxZones, FileEvent } from "@supermuschel/shared";
 
 export const selectedWorkspaceIdAtom = atom<string | null>(null);
 
@@ -19,3 +20,15 @@ export interface WorkspaceSessionState {
 }
 
 export const workspaceSessionsAtom = atom<Record<string, WorkspaceSessionState>>({});
+
+export const sessionZonesAtom = atomFamily((_sessionId: string) =>
+  atom<SandboxZones | null>(null)
+);
+
+export const sessionFileEventsAtom = atomFamily((_sessionId: string) =>
+  atom<FileEvent[]>([])
+);
+
+export const sessionEventCountsAtom = atomFamily((_sessionId: string) =>
+  atom({ blocked: 0, writes: 0 })
+);

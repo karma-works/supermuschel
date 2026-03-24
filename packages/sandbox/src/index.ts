@@ -77,4 +77,6 @@ export class SandboxManager {
   }
 }
 
+export { loadSandboxProfile } from "./profile-loader.js";
+export { deriveZones } from "./derive-zones.js";
 export { NoneBackend, OsSandboxBackend, SeatbeltBackend, BubblewrapBackend, ContainerBackend, PolicyBackend };

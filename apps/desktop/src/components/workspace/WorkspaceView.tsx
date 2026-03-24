@@ -5,10 +5,12 @@ import { trpc } from "../../lib/trpc.js";
 import { TerminalPane } from "../terminal/TerminalPane.js";
 import { SandboxSelector } from "../sandbox/SandboxSelector.js";
 import { SandboxBadge } from "../sandbox/SandboxBadge.js";
+import { SandboxPanel } from "../sandbox/SandboxPanel.js";
 import { NewWorkspaceModal } from "./NewWorkspaceModal.js";
 import {
   selectedWorkspaceIdAtom,
   workspaceSessionsAtom,
+  sessionEventCountsAtom,
   type AgentSession,
   type WorkspaceSessionState,
 } from "../../stores/atoms.js";
@@ -22,6 +24,33 @@ const SANDBOX_SHORT: Record<number, { label: string; color: string }> = {
   2: { label: "Ctr", color: "var(--sandbox-container)" },
   3: { label: "Pol", color: "var(--sandbox-policy)" },
 };
+
+// ─── Status bar event count badge ─────────────────────────────────────────────
+
+function SessionEventCountBadge({ agentId }: { agentId: string }) {
+  const [counts] = useAtom(sessionEventCountsAtom(agentId));
+  if (counts.blocked === 0 && counts.writes === 0) return null;
+  return (
+    <>
+      {counts.blocked > 0 && (
+        <>
+          <span style={{ opacity: 0.5 }}>|</span>
+          <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
+            {counts.blocked} blocked
+          </span>
+        </>
+      )}
+      {counts.writes > 0 && (
+        <>
+          <span style={{ opacity: 0.5 }}>|</span>
+          <span style={{ fontSize: 10, color: "#22c55e" }}>
+            {counts.writes} writes
+          </span>
+        </>
+      )}
+    </>
+  );
+}
 
 // ─── Top-level: workspace selection ───────────────────────────────────────────
 
@@ -429,21 +458,36 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
           </div>
         ) : (
           /* Terminal panes — all mounted, CSS visibility to preserve scrollback */
-          sessions.map((session) => {
-            const isActiveTab = session.agentId === activeAgentId;
-            return (
-              <div
-                key={session.agentId}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  visibility: isActiveTab ? "visible" : "hidden",
-                }}
-              >
-                <TerminalPane agentId={session.agentId} isActive={isActiveTab} />
-              </div>
-            );
-          })
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "row" }}>
+            <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+              {sessions.map((session) => {
+                const isActiveTab = session.agentId === activeAgentId;
+                return (
+                  <div
+                    key={session.agentId}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      visibility: isActiveTab ? "visible" : "hidden",
+                    }}
+                  >
+                    <TerminalPane agentId={session.agentId} isActive={isActiveTab} />
+                  </div>
+                );
+              })}
+            </div>
+            {/* Sandbox panel — shown for the active session when it's Level 1 */}
+            {(() => {
+              const activeSession = sessions.find((s) => s.agentId === activeAgentId);
+              if (!activeSession || activeSession.sandboxLevel === 0) return null;
+              return (
+                <SandboxPanel
+                  agentId={activeSession.agentId}
+                  sandboxLevel={activeSession.sandboxLevel}
+                />
+              );
+            })()}
+          </div>
         )}
       </div>
 
@@ -488,6 +532,10 @@ function WorkspaceSessionView({ workspace }: { workspace: SerializedWorkspace })
         >
           {workspace.projectPath}
         </span>
+        {/* Active session event counts */}
+        {activeAgentId && (
+          <SessionEventCountBadge agentId={activeAgentId} />
+        )}
         <div style={{ flex: 1 }} />
         <button
           onClick={() => setShowSandboxSettings(true)}

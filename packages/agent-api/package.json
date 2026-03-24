@@ -10,6 +10,7 @@
   "dependencies": {
     "@supermuschel/sandbox": "workspace:*",
     "@supermuschel/shared": "workspace:*",
+    "chokidar": "^4.0.3",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {

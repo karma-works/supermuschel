@@ -2,9 +2,9 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { observable } from "@trpc/server/observable";
 import { z } from "zod";
-import type { SonderaInstallEvent } from "@supermuschel/shared";
+import type { FileEvent, SonderaInstallEvent } from "@supermuschel/shared";
 import { SandboxLevelSchema } from "@supermuschel/shared";
-import { SandboxManager } from "@supermuschel/sandbox";
+import { SandboxManager, deriveZones } from "@supermuschel/sandbox";
 import { sqlite } from "../db/client.js";
 import {
   checkOllamaInstalled,
@@ -65,6 +65,30 @@ export const sandboxRouter = t.router({
       } catch (err) {
         return { success: false, reason: String(err) };
       }
+    }),
+
+  getZones: t.procedure
+    .input(z.object({ agentId: z.string() }))
+    .query(({ ctx, input }) => {
+      const agent = ctx.agentManager.getAgent(input.agentId);
+      if (!agent) return { writable: [], readOnly: [], blocked: [] };
+      let seatbeltProfilePath: string | null = null;
+      if (process.platform === "darwin" && agent.sandboxLevel === 1) {
+        const backend = agent.sandboxManager.getBackend(1) as { getProfilePath?: () => string | null };
+        seatbeltProfilePath = backend.getProfilePath?.() ?? null;
+      }
+      return deriveZones(agent.sandboxLevel, null, agent.cwd, seatbeltProfilePath);
+    }),
+
+  fileEvents: t.procedure
+    .input(z.object({ agentId: z.string() }))
+    .subscription(({ ctx, input }) => {
+      return observable<FileEvent>((emit) => {
+        const unsub = ctx.agentManager.onFileEvent(input.agentId, (event) => {
+          emit.next(event);
+        });
+        return () => unsub();
+      });
     }),
 
   sondera: t.router({

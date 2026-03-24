@@ -17,3 +17,4 @@ tools/supermuschel-cli/dist/
 
 # claude
 .claude/*.backup.*
+.gstack/

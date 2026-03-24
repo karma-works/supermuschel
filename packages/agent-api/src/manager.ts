@@ -1,8 +1,15 @@
 import { EventEmitter } from "node:events";
 import { execSync } from "node:child_process";
 import * as pty from "node-pty";
+import chokidar from "chokidar";
+import type { FSWatcher } from "chokidar";
 import type { SandboxManager } from "@supermuschel/sandbox";
-import type { AgentStatus, AgentType, SandboxLevel } from "@supermuschel/shared";
+import type { AgentStatus, AgentType, FileEvent, SandboxLevel } from "@supermuschel/shared";
+
+// Matches raw EACCES/EPERM strings that appear in PTY output when bwrap blocks a path.
+// Strip ANSI escape codes before matching if needed.
+const EPERM_RE = /(?:EACCES|EPERM|permission denied)[^\n]*?'(\/[^']+)'/i;
+const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
 
 export interface AgentProcess {
   id: string;
@@ -13,6 +20,8 @@ export interface AgentProcess {
   pid: number;
   status: AgentStatus;
   pty: pty.IPty;
+  sandboxManager: SandboxManager;
+  watcher: FSWatcher | null;
 }
 
 export interface StartAgentOptions {
@@ -68,7 +77,6 @@ export class AgentManager extends EventEmitter {
       spawnArgs = wrapped.args;
     }
 
-    // Inject supermuschel binary into PATH
     const env = {
       ...process.env,
       SUPERMUSCHEL_WORKSPACE_ID: workspaceId,
@@ -85,6 +93,26 @@ export class AgentManager extends EventEmitter {
     });
 
     const id = `${workspaceId}-${Date.now()}`;
+
+    // Start chokidar watcher for write events (only for sandboxed sessions)
+    let watcher: FSWatcher | null = null;
+    if (sandboxLevel === 1) {
+      watcher = chokidar.watch(cwd, {
+        ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**", "**/.next/**"],
+        ignoreInitial: true,
+        persistent: true,
+        awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
+      });
+      watcher.on("add", (path) => {
+        const ev: FileEvent & { agentId: string } = { agentId: id, type: "write", path, ts: Date.now() };
+        this.emit("fileEvent", ev);
+      });
+      watcher.on("change", (path) => {
+        const ev: FileEvent & { agentId: string } = { agentId: id, type: "write", path, ts: Date.now() };
+        this.emit("fileEvent", ev);
+      });
+    }
+
     const agent: AgentProcess = {
       id,
       workspaceId,
@@ -94,10 +122,22 @@ export class AgentManager extends EventEmitter {
       pid: terminal.pid,
       status: "starting",
       pty: terminal,
+      sandboxManager,
+      watcher,
     };
 
     terminal.onData((data) => {
       this.emit("data", { agentId: id, workspaceId, data });
+
+      // EPERM parsing: tap PTY data for blocked path events (bwrap Level 1 Linux)
+      if (sandboxLevel === 1) {
+        const clean = data.replace(ANSI_RE, "");
+        const m = EPERM_RE.exec(clean);
+        if (m) {
+          const ev: FileEvent & { agentId: string } = { agentId: id, type: "blocked", path: m[1], ts: Date.now() };
+          this.emit("fileEvent", ev);
+        }
+      }
     });
 
     terminal.onExit(({ exitCode }) => {
@@ -116,6 +156,7 @@ export class AgentManager extends EventEmitter {
   stop(agentId: string): void {
     const agent = this.agents.get(agentId);
     if (!agent) return;
+    agent.watcher?.close().catch(() => {});
     agent.pty.kill();
     agent.status = "stopped";
     this.agents.delete(agentId);
@@ -139,6 +180,14 @@ export class AgentManager extends EventEmitter {
 
   getAgentsForWorkspace(workspaceId: string): AgentProcess[] {
     return [...this.agents.values()].filter((a) => a.workspaceId === workspaceId);
+  }
+
+  onFileEvent(agentId: string, cb: (e: FileEvent) => void): () => void {
+    const handler = (e: FileEvent & { agentId: string }) => {
+      if (e.agentId === agentId) cb(e);
+    };
+    this.on("fileEvent", handler);
+    return () => this.off("fileEvent", handler);
   }
 
   stopAll(): void {
