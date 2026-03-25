@@ -47,6 +47,15 @@ sqlite.exec(`
     ollama_enabled INTEGER NOT NULL DEFAULT 0,
     model TEXT DEFAULT NULL
   );
+  CREATE TABLE IF NOT EXISTS sandbox_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK(event_type IN ('write', 'blocked')),
+    path TEXT NOT NULL,
+    ts INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sandbox_events_agent ON sandbox_events(agent_id, ts);
 `);
 
 runMigrations();

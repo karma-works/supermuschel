@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
-import { useAtom } from "jotai";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAtom, useSetAtom } from "jotai";
 import type { FileEvent, SandboxZones } from "@supermuschel/shared";
 import { trpc } from "../../lib/trpc.js";
 import { sessionEventCountsAtom, sessionFileEventsAtom, sessionZonesAtom } from "../../stores/atoms.js";
 
-const MAX_EVENTS = 200;
+const MAX_LIVE_EVENTS = 500;
 
 interface SandboxPanelProps {
   agentId: string;
@@ -66,9 +66,83 @@ function ZoneList({ label, paths, color }: { label: string; paths: string[]; col
   );
 }
 
+// ─── Event row ────────────────────────────────────────────────────────────────
+
+function EventRow({ ev }: { ev: FileEvent }) {
+  const isBlocked = ev.type === "blocked";
+  const time = new Date(ev.ts).toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parts = ev.path.split("/");
+  const displayPath = parts.length > 2 ? `…/${parts.slice(-2).join("/")}` : ev.path;
+
+  return (
+    <div
+      title={ev.path}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 4px",
+        borderRadius: 3,
+        background: isBlocked ? "rgba(239,68,68,0.07)" : "transparent",
+        borderLeft: isBlocked ? "2px solid #ef4444" : "2px solid transparent",
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          color: "var(--text-muted)",
+          opacity: 0.6,
+          fontFamily: "JetBrains Mono, monospace",
+          flexShrink: 0,
+        }}
+      >
+        {time}
+      </span>
+      <span
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          color: isBlocked ? "#ef4444" : "#22c55e",
+          flexShrink: 0,
+          width: 38,
+        }}
+      >
+        {isBlocked ? "BLOCK" : "WRITE"}
+      </span>
+      <span
+        style={{
+          fontSize: 10,
+          fontFamily: "JetBrains Mono, monospace",
+          color: isBlocked ? "#fca5a5" : "var(--text-muted)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          flex: 1,
+        }}
+      >
+        {displayPath}
+      </span>
+    </div>
+  );
+}
+
 // ─── Event feed ───────────────────────────────────────────────────────────────
 
-function EventFeed({ events }: { events: FileEvent[] }) {
+type FilterType = "all" | "write" | "blocked";
+
+function EventFeed({ events, filter, onFilterChange }: {
+  events: FileEvent[];
+  filter: FilterType;
+  onFilterChange: (f: FilterType) => void;
+}) {
   const listRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new events
@@ -77,112 +151,80 @@ function EventFeed({ events }: { events: FileEvent[] }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [events.length]);
 
-  if (events.length === 0) {
-    return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text-muted)",
-          fontSize: 11,
-          opacity: 0.5,
-        }}
-      >
-        No events yet
-      </div>
-    );
-  }
-
   return (
-    <div
-      ref={listRef}
-      style={{
-        flex: 1,
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-      }}
-    >
-      {events.map((ev, i) => {
-        const isBlocked = ev.type === "blocked";
-        const time = new Date(ev.ts).toLocaleTimeString("en-US", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        // Show just the filename + one parent dir for brevity
-        const parts = ev.path.split("/");
-        const displayPath = parts.length > 2 ? `…/${parts.slice(-2).join("/")}` : ev.path;
-
-        return (
-          <div
-            key={`${ev.ts}-${i}`}
-            title={ev.path}
+    <>
+      {/* Filter bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 4, flexShrink: 0 }}>
+        {(["all", "write", "blocked"] as FilterType[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => onFilterChange(f)}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "2px 4px",
+              padding: "1px 6px",
               borderRadius: 3,
-              background: isBlocked ? "rgba(239,68,68,0.07)" : "transparent",
-              borderLeft: isBlocked ? "2px solid #ef4444" : "2px solid transparent",
-              flexShrink: 0,
+              border: "1px solid",
+              borderColor: filter === f ? (f === "blocked" ? "#ef4444" : f === "write" ? "#22c55e" : "var(--accent)") : "var(--border)",
+              background: filter === f ? (f === "blocked" ? "rgba(239,68,68,0.12)" : f === "write" ? "rgba(34,197,94,0.12)" : "rgba(99,102,241,0.12)") : "transparent",
+              color: filter === f ? (f === "blocked" ? "#ef4444" : f === "write" ? "#22c55e" : "var(--accent)") : "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
             }}
           >
-            <span
-              style={{
-                fontSize: 9,
-                color: "var(--text-muted)",
-                opacity: 0.6,
-                fontFamily: "JetBrains Mono, monospace",
-                flexShrink: 0,
-              }}
-            >
-              {time}
-            </span>
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-                color: isBlocked ? "#ef4444" : "#22c55e",
-                flexShrink: 0,
-                width: 38,
-              }}
-            >
-              {isBlocked ? "BLOCK" : "WRITE"}
-            </span>
-            <span
-              style={{
-                fontSize: 10,
-                fontFamily: "JetBrains Mono, monospace",
-                color: isBlocked ? "#fca5a5" : "var(--text-muted)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-              }}
-            >
-              {displayPath}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {events.length === 0 ? (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text-muted)",
+            fontSize: 11,
+            opacity: 0.5,
+          }}
+        >
+          No events yet
+        </div>
+      ) : (
+        <div
+          ref={listRef}
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          {events.map((ev, i) => (
+            <EventRow key={`${ev.ts}-${i}`} ev={ev} />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
-  const [events, setEvents] = useAtom(sessionFileEventsAtom(agentId));
-  const [counts, setCounts] = useAtom(sessionEventCountsAtom(agentId));
+  const [liveEvents, setLiveEvents] = useAtom(sessionFileEventsAtom(agentId));
+  const setCounts = useSetAtom(sessionEventCountsAtom(agentId));
   const [zones, setZones] = useAtom(sessionZonesAtom(agentId));
+  const [filter, setFilter] = useState<FilterType>("all");
+
+  // Load full audit log from SQLite on mount
+  const { data: historicalEvents } = trpc.sandbox.getEvents.useQuery(
+    { agentId, eventType: "all", limit: 2000 },
+    { enabled: sandboxLevel === 1, refetchOnWindowFocus: false },
+  );
 
   // Fetch zones for this agent session
   const { data: fetchedZones } = trpc.sandbox.getZones.useQuery(
@@ -192,9 +234,7 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
 
   // Merge fetched zones into atom
   useEffect(() => {
-    if (fetchedZones) {
-      setZones(fetchedZones as SandboxZones);
-    }
+    if (fetchedZones) setZones(fetchedZones as SandboxZones);
   }, [fetchedZones, setZones]);
 
   // Subscribe to live file events
@@ -203,9 +243,9 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
     {
       enabled: sandboxLevel === 1,
       onData: (event: FileEvent) => {
-        setEvents((prev) => {
+        setLiveEvents((prev) => {
           const updated = [...prev, event];
-          return updated.length > MAX_EVENTS ? updated.slice(updated.length - MAX_EVENTS) : updated;
+          return updated.length > MAX_LIVE_EVENTS ? updated.slice(updated.length - MAX_LIVE_EVENTS) : updated;
         });
         setCounts((prev) => ({
           blocked: event.type === "blocked" ? prev.blocked + 1 : prev.blocked,
@@ -214,6 +254,23 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
       },
     },
   );
+
+  // Merge historical (SQLite) + live (subscription) events without duplication.
+  // Historical events predate the live subscription window — splice at the first
+  // live event's timestamp to avoid overlap from the startup race.
+  const allEvents = useMemo<FileEvent[]>(() => {
+    if (!historicalEvents || historicalEvents.length === 0) return liveEvents;
+    const liveMinTs = liveEvents[0]?.ts ?? Infinity;
+    const historicalFiltered = historicalEvents.filter((e) => e.ts < liveMinTs);
+    return [...historicalFiltered, ...liveEvents];
+  }, [historicalEvents, liveEvents]);
+
+  // Apply type filter
+  const displayEvents = filter === "all" ? allEvents : allEvents.filter((e) => e.type === filter);
+
+  // Counts from the full merged log (not just live atom)
+  const totalBlocked = useMemo(() => allEvents.filter((e) => e.type === "blocked").length, [allEvents]);
+  const totalWrites = useMemo(() => allEvents.filter((e) => e.type === "write").length, [allEvents]);
 
   if (sandboxLevel === 0) return null;
 
@@ -241,9 +298,6 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
   }
 
   // Level 1: full panel
-  const blockedCount = counts.blocked;
-  const writeCount = counts.writes;
-
   return (
     <div
       style={{
@@ -267,18 +321,11 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
           flexShrink: 0,
         }}
       >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            letterSpacing: "0.02em",
-          }}
-        >
+        <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "0.02em" }}>
           Sandbox View
         </span>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {blockedCount > 0 && (
+          {totalBlocked > 0 && (
             <span
               style={{
                 fontSize: 10,
@@ -290,10 +337,10 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
                 padding: "1px 6px",
               }}
             >
-              {blockedCount} blocked
+              {totalBlocked} blocked
             </span>
           )}
-          {writeCount > 0 && (
+          {totalWrites > 0 && (
             <span
               style={{
                 fontSize: 10,
@@ -303,7 +350,7 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
                 padding: "1px 6px",
               }}
             >
-              {writeCount} writes
+              {totalWrites} writes
             </span>
           )}
         </div>
@@ -336,13 +383,11 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
             <ZoneList label="Blocked" paths={zones.blocked} color="#ef4444" />
           </>
         ) : (
-          <div style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>
-            Loading zones…
-          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>Loading zones…</div>
         )}
       </div>
 
-      {/* Live event feed */}
+      {/* Audit log / event feed */}
       <div
         style={{
           display: "flex",
@@ -354,18 +399,31 @@ export function SandboxPanel({ agentId, sandboxLevel }: SandboxPanelProps) {
       >
         <div
           style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: "var(--text-muted)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
             marginBottom: 4,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
             flexShrink: 0,
           }}
         >
-          Live Events
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            Audit Log
+          </span>
+          {allEvents.length > 0 && (
+            <span style={{ fontSize: 9, color: "var(--text-muted)", opacity: 0.5 }}>
+              {allEvents.length} events
+            </span>
+          )}
         </div>
-        <EventFeed events={events} />
+        <EventFeed events={displayEvents} filter={filter} onFilterChange={setFilter} />
       </div>
     </div>
   );

@@ -67,6 +67,34 @@ export const sandboxRouter = t.router({
       }
     }),
 
+  getEvents: t.procedure
+    .input(
+      z.object({
+        agentId: z.string(),
+        eventType: z.enum(["write", "blocked", "all"]).default("all"),
+        limit: z.number().int().min(1).max(10000).default(2000),
+      }),
+    )
+    .query(({ ctx, input }) => {
+      const rows =
+        input.eventType === "all"
+          ? (ctx.db
+              .prepare(
+                "SELECT event_type, path, ts FROM sandbox_events WHERE agent_id = ? ORDER BY ts ASC LIMIT ?",
+              )
+              .all(input.agentId, input.limit) as { event_type: string; path: string; ts: number }[])
+          : (ctx.db
+              .prepare(
+                "SELECT event_type, path, ts FROM sandbox_events WHERE agent_id = ? AND event_type = ? ORDER BY ts ASC LIMIT ?",
+              )
+              .all(input.agentId, input.eventType, input.limit) as {
+              event_type: string;
+              path: string;
+              ts: number;
+            }[]);
+      return rows.map((r) => ({ type: r.event_type as "write" | "blocked", path: r.path, ts: r.ts }));
+    }),
+
   getZones: t.procedure
     .input(z.object({ agentId: z.string() }))
     .query(({ ctx, input }) => {
@@ -84,7 +112,16 @@ export const sandboxRouter = t.router({
     .input(z.object({ agentId: z.string() }))
     .subscription(({ ctx, input }) => {
       return observable<FileEvent>((emit) => {
+        const insertStmt = ctx.db.prepare(
+          "INSERT INTO sandbox_events (agent_id, workspace_id, event_type, path, ts) VALUES (?, ?, ?, ?, ?)",
+        );
         const unsub = ctx.agentManager.onFileEvent(input.agentId, (event) => {
+          const agent = ctx.agentManager.getAgent(input.agentId);
+          try {
+            insertStmt.run(input.agentId, agent?.workspaceId ?? "", event.type, event.path, event.ts);
+          } catch (err) {
+            console.warn("[sandbox] Failed to persist file event:", err);
+          }
           emit.next(event);
         });
         return () => unsub();
