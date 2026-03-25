@@ -22,6 +22,8 @@ export interface AgentProcess {
   pty: pty.IPty;
   sandboxManager: SandboxManager;
   watcher: FSWatcher | null;
+  /** Rolling buffer of raw PTY output chunks for late-joining subscribers. */
+  outputBuffer: string[];
 }
 
 export interface StartAgentOptions {
@@ -124,9 +126,17 @@ export class AgentManager extends EventEmitter {
       pty: terminal,
       sandboxManager,
       watcher,
+      outputBuffer: [],
     };
 
+    const BUFFER_MAX_CHUNKS = 2000;
+
     terminal.onData((data) => {
+      // Buffer for late-joining subscribers (e.g. web WS connects after PTY starts)
+      agent.outputBuffer.push(data);
+      if (agent.outputBuffer.length > BUFFER_MAX_CHUNKS) {
+        agent.outputBuffer.shift();
+      }
       this.emit("data", { agentId: id, workspaceId, data });
 
       // EPERM parsing: tap PTY data for blocked path events (bwrap Level 1 Linux)
@@ -164,13 +174,13 @@ export class AgentManager extends EventEmitter {
 
   write(agentId: string, data: string): void {
     const agent = this.agents.get(agentId);
-    if (!agent) throw new Error(`Agent ${agentId} not found`);
+    if (!agent) return; // agent stopped — discard keystroke
     agent.pty.write(data);
   }
 
   resize(agentId: string, cols: number, rows: number): void {
     const agent = this.agents.get(agentId);
-    if (!agent) throw new Error(`Agent ${agentId} not found`);
+    if (!agent) return; // agent stopped — ResizeObserver/xterm teardown race, safe to ignore
     agent.pty.resize(cols, rows);
   }
 
