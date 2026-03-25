@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const SandboxLevelSchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
+export const SandboxLevelSchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
 export type SandboxLevel = z.infer<typeof SandboxLevelSchema>;
 
 export const AgentTypeSchema = z.enum(["claude", "opencode"]);

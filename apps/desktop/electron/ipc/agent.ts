@@ -129,6 +129,12 @@ export const agentRouter = t.router({
         );
         sonderaHarness.decrementSession();
       }
+      // Clean up OpenShell policy file for Level 4 sessions
+      if (agent && agent.sandboxLevel === 4) {
+        agent.sandboxManager.cleanup(4).catch((e) =>
+          console.warn("[agent] failed to cleanup sandbox backend:", e),
+        );
+      }
       ctx.agentManager.stop(input.agentId);
       if (workspaceId) {
         const remaining = ctx.agentManager.getAgentsForWorkspace(workspaceId);

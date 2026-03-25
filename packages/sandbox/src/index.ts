@@ -3,6 +3,7 @@ import type { SandboxLevel } from "@supermuschel/shared";
 import { ContainerBackend } from "./container.js";
 import { NoneBackend } from "./none.js";
 import { OsSandboxBackend } from "./os-sandbox.js";
+import { OpenShellBackend } from "./openshell.js";
 import { PolicyBackend } from "./policy.js";
 import { SeatbeltBackend } from "./seatbelt.js";
 import { BubblewrapBackend } from "./bubblewrap.js";
@@ -44,6 +45,7 @@ export class SandboxManager {
     this.backends.set(1, new OsSandboxBackend(projectPath, homePath));
     this.backends.set(2, new ContainerBackend(projectPath));
     this.backends.set(3, new PolicyBackend());
+    this.backends.set(4, new OpenShellBackend(projectPath, homePath));
   }
 
   getBackend(level: SandboxLevel): SandboxBackend {
@@ -63,8 +65,12 @@ export class SandboxManager {
   }
 
   async diagnoseAll(): Promise<SandboxDiagnosis[]> {
-    const levels = [0, 1, 2, 3] as const;
+    const levels = [0, 1, 2, 3, 4] as const;
     return Promise.all(levels.map((l) => this.diagnose(l)));
+  }
+
+  async cleanup(level: SandboxLevel): Promise<void> {
+    await this.getBackend(level).cleanup?.();
   }
 
   wrapSpawn(level: SandboxLevel, config: SpawnConfig): SpawnConfig {
@@ -79,4 +85,4 @@ export class SandboxManager {
 
 export { loadSandboxProfile } from "./profile-loader.js";
 export { deriveZones } from "./derive-zones.js";
-export { NoneBackend, OsSandboxBackend, SeatbeltBackend, BubblewrapBackend, ContainerBackend, PolicyBackend };
+export { NoneBackend, OsSandboxBackend, SeatbeltBackend, BubblewrapBackend, ContainerBackend, PolicyBackend, OpenShellBackend };

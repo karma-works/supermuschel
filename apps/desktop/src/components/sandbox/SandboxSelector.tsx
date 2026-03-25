@@ -54,8 +54,17 @@ const LEVELS: {
     icon: "🛡️",
     description:
       "Cedar policy enforcement + YARA-X signature scanning intercept every agent tool call. Fast and lightweight — works with any agent and any OS. Optional LLM classifier for data-sensitivity tagging.",
-    recommended: true,
     color: "#a855f7",
+  },
+  {
+    level: 4 as SandboxLevel,
+    label: "OpenShell",
+    icon: "🧊",
+    description:
+      "NVIDIA's AI agent sandbox — Landlock LSM + per-binary network policies. Runs agents inside a Docker container with fine-grained filesystem and network controls. Requires Docker.",
+    yoloNote: "Agent runs with --dangerously-skip-permissions inside the OpenShell sandbox.",
+    recommended: true,
+    color: "#76b900",
   },
 ];
 
@@ -69,6 +78,13 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
   const { data: requirements, isLoading } = trpc.sandbox.getRequirements.useQuery({ projectPath });
   const { data: sonderaStatus } = trpc.sandbox.sondera.getStatus.useQuery();
   const [showWizard, setShowWizard] = useState(false);
+  const [removeHooksStatus, setRemoveHooksStatus] = useState<"idle" | "done">("idle");
+  const removeHooksMutation = trpc.sandbox.sondera.removeProjectHooks.useMutation({
+    onSuccess: () => {
+      setRemoveHooksStatus("done");
+      setTimeout(() => setRemoveHooksStatus("idle"), 3000);
+    },
+  });
 
   const handleSelect = (level: SandboxLevel, available: boolean) => {
     // Level 3 (Policy): if not installed, show wizard first
@@ -227,6 +243,35 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                 >
                   ⚡ {opt.yoloNote}
                 </p>
+              )}
+
+              {/* Level 3: remove hooks action (shown when installed) */}
+              {opt.level === 3 && policyInstalled && (
+                <div
+                  style={{ marginTop: 8 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {removeHooksStatus === "done" ? (
+                    <span style={{ fontSize: 10, color: "#22c55e" }}>✓ Hooks removed from project</span>
+                  ) : (
+                    <button
+                      onClick={() => removeHooksMutation.mutate({ projectPath })}
+                      disabled={removeHooksMutation.isPending}
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: 4,
+                        border: "1px solid rgba(239,68,68,0.35)",
+                        background: "transparent",
+                        color: removeHooksMutation.isPending ? "var(--text-muted)" : "#fca5a5",
+                        cursor: removeHooksMutation.isPending ? "not-allowed" : "pointer",
+                        fontSize: 10,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {removeHooksMutation.isPending ? "Removing…" : "Remove hooks from this project"}
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* Unavailability reason + fix */}

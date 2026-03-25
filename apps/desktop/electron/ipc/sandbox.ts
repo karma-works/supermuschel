@@ -12,6 +12,7 @@ import {
   getHarnessBin,
   installSonderaBinaries,
   isSonderaInstalled,
+  uninstallHooks,
 } from "../lib/sondera-installer.js";
 import { SONDERA_MODEL_PRESETS, SONDERA_HARNESS_MODEL_ALIAS } from "@supermuschel/shared";
 import { sonderaHarness } from "../agents/sondera.js";
@@ -282,6 +283,13 @@ export const sandboxRouter = t.router({
       sqlite.prepare("DELETE FROM sondera_install").run();
       return { ok: true };
     }),
+
+    removeProjectHooks: t.procedure
+      .input(z.object({ projectPath: z.string() }))
+      .mutation(async ({ input }) => {
+        await uninstallHooks(input.projectPath);
+        return { ok: true };
+      }),
   }),
 });
 

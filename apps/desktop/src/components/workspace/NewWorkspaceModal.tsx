@@ -11,7 +11,7 @@ export function NewWorkspaceModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [projectPath, setProjectPath] = useState("");
   const [agentType, setAgentType] = useState<AgentType>("claude");
-  const [sandboxLevel, setSandboxLevel] = useState<SandboxLevel>(1);
+  const [sandboxLevel, setSandboxLevel] = useState<SandboxLevel>(4);
   const [error, setError] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
@@ -65,6 +65,16 @@ export function NewWorkspaceModal({ onClose, onCreated }: Props) {
       level: 2,
       label: "Container",
       description: "Docker/Podman container. Strongest isolation. Requires container runtime.",
+    },
+    {
+      level: 3 as SandboxLevel,
+      label: "Policy (Sondera)",
+      description: "Cedar policy + YARA-X scanning on every agent tool call. Requires Sondera setup.",
+    },
+    {
+      level: 4 as SandboxLevel,
+      label: "OpenShell (Recommended)",
+      description: "NVIDIA OpenShell — Landlock LSM + network policies in Docker. Recommended when available.",
     },
   ];
 

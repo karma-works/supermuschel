@@ -23,6 +23,7 @@ const SANDBOX_SHORT: Record<number, { label: string; color: string }> = {
   1: { label: "OS", color: "var(--sandbox-os)" },
   2: { label: "Ctr", color: "var(--sandbox-container)" },
   3: { label: "Pol", color: "var(--sandbox-policy)" },
+  4: { label: "OS+", color: "#76b900" },
 };
 
 // ─── Status bar event count badge ─────────────────────────────────────────────
