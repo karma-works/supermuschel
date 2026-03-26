@@ -3,7 +3,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/supermuschel/supermuschel/main/install.sh | bash
 set -euo pipefail
 
-REPO="supermuschel/supermuschel"
+REPO="karma-works/supermuschel"
 INSTALL_DIR="${SUPERMUSCHEL_INSTALL_DIR:-/usr/local/bin}"
 DATA_DIR="${SUPERMUSCHEL_DATA_DIR:-$HOME/.supermuschel}"
 PORT="${SUPERMUSCHEL_PORT:-3000}"
