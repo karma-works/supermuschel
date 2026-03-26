@@ -140,5 +140,4 @@ jobs:
           files: |
             apps/server/dist-bin/supermuschel-server-linux-x64.tar.gz
             apps/server/dist-bin/supermuschel-server-linux-arm64.tar.gz
-            apps/desktop/dist-app/*.flatpak
-            apps/desktop/dist-app/*.tar.gz
+            apps/desktop/dist-app/**/*.tar.gz
