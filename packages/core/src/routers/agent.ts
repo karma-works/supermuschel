@@ -112,12 +112,6 @@ export const agentRouter = t.router({
     .mutation(async ({ ctx, input }) => {
       const agent = ctx.agentManager.getAgent(input.agentId);
       const workspaceId = agent?.workspaceId;
-      if (agent?.sandboxLevel === 3 && ctx.sondera) {
-        await ctx.sondera.uninstallHooks(agent.cwd).catch((e: Error) =>
-          console.warn("[agent] failed to uninstall hooks:", e),
-        );
-        ctx.sondera.decrementSession();
-      }
       ctx.agentManager.stop(input.agentId);
       if (workspaceId) {
         const remaining = ctx.agentManager.getAgentsForWorkspace(workspaceId);
