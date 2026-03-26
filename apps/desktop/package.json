@@ -51,15 +51,10 @@
     },
     "linux": {
       "target": [
-        { "target": "flatpak", "arch": ["x64"] },
         { "target": "tar.gz", "arch": ["x64"] }
       ],
       "category": "Development",
       "icon": "resources/icon.svg"
-    },
-    "flatpak": {
-      "useWaylandFlags": true,
-      "runtimeVersion": "23.08"
     },
     "publish": {
       "provider": "github",

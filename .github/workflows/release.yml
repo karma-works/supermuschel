@@ -131,11 +131,8 @@ jobs:
       - name: Build Electron app
         run: cd apps/desktop && bun run build
 
-      - name: Install flatpak-builder
-        run: sudo apt-get install -y flatpak flatpak-builder
-
-      - name: Package Linux (tar.gz + Flatpak, x64 only)
-        run: cd apps/desktop && bunx electron-builder --linux --x64 --publish never
+      - name: Package Linux (tar.gz, x64 only)
+        run: cd apps/desktop && bunx electron-builder --linux tar.gz --x64 --publish never
 
       - name: Upload Linux server binaries to release
         uses: softprops/action-gh-release@v2
