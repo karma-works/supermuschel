@@ -4,12 +4,12 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build:sondera": "cd /Users/hacr/git-repo/sondera-coding-agent-hooks && cargo build --release --target aarch64-apple-darwin --bin sondera-harness-server --bin sondera-claude && mkdir -p resources/bin && cp target/aarch64-apple-darwin/release/sondera-harness-server target/aarch64-apple-darwin/release/sondera-claude resources/bin/",
     "build": "electron-vite build",
     "build:cli": "cd ../../tools/supermuschel-cli && bun run build && mkdir -p ../../apps/desktop/resources/bin && cp dist/supermuschel ../../apps/desktop/resources/bin/supermuschel",
     "dist": "bun run build && electron-builder",
     "dist:mac": "bun run build && electron-builder --mac",
     "preview": "electron-vite preview",
+    "build:web": "vite build --config vite.web.config.mts",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx electron/db/migrate.ts",
     "rebuild": "electron-rebuild -f -w node-pty,better-sqlite3"
@@ -31,11 +31,6 @@
         "from": "resources/bin",
         "to": "bin",
         "filter": ["**/*"]
-      },
-      {
-        "from": "resources/policies",
-        "to": "policies",
-        "filter": ["**/*"]
       }
     ],
     "mac": {
@@ -54,6 +49,18 @@
         { "x": 130, "y": 150, "type": "file" }
       ]
     },
+    "linux": {
+      "target": [
+        { "target": "flatpak", "arch": ["x64"] },
+        { "target": "tar.gz", "arch": ["x64", "arm64"] }
+      ],
+      "category": "Development",
+      "icon": "resources/icon.svg"
+    },
+    "flatpak": {
+      "useWaylandFlags": true,
+      "runtimeVersion": "23.08"
+    },
     "publish": {
       "provider": "github",
       "owner": "supermuschel",
@@ -62,6 +69,7 @@
   },
   "dependencies": {
     "@supermuschel/agent-api": "workspace:*",
+    "@supermuschel/core": "workspace:*",
     "@supermuschel/sandbox": "workspace:*",
     "@supermuschel/shared": "workspace:*",
     "@trpc/server": "^11.0.0",

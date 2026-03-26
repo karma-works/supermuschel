@@ -7,9 +7,8 @@ import { existsSync } from "node:fs";
 import { createIPCHandler } from "./ipc/handler.js";
 import { appRouter, uiEventEmitter } from "./ipc/router.js";
 import { createContext } from "./ipc/context.js";
-import { SocketServer } from "./socket/server.js";
+import { SocketServer } from "@supermuschel/core";
 import { AgentManager } from "@supermuschel/agent-api";
-import { sonderaHarness } from "./agents/sondera.js";
 
 // Set name early so it appears correctly in native dialogs and menus
 app.setName("Supermuschel");
@@ -221,6 +220,5 @@ app.whenReady().then(async () => {
 app.on("window-all-closed", () => {
   agentManager.stopAll();
   socketServer?.stop();
-  void sonderaHarness.stop();
   if (process.platform !== "darwin") app.quit();
 });

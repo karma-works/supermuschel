@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Supermuschel
+Comment=AI agent runner with tiered sandboxing
+Exec=supermuschel %U
+Icon=org.supermuschel.desktop
+Type=Application
+Categories=Development;
+StartupWMClass=supermuschel

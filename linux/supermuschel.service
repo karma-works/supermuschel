@@ -1,0 +1,15 @@
+[Unit]
+Description=Supermuschel headless server
+Documentation=https://github.com/supermuschel/supermuschel
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+ExecStart=/usr/local/bin/supermuschel --port 3000 --workdir %h
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

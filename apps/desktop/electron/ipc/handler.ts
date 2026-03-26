@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
 import type { AnyRouter } from "@trpc/server";
+import type { Context } from "@supermuschel/core";
 import { t } from "./trpc.js";
 
 export const REQUEST_CHANNEL = "sm-trpc-req";
@@ -15,7 +16,7 @@ export function createIPCHandler<TRouter extends AnyRouter>({
 }: {
   router: TRouter;
   windows: BrowserWindow[];
-  createContext: () => Promise<Record<string, unknown>>;
+  createContext: () => Promise<Context>;
 }) {
   const createCaller = t.createCallerFactory(router);
   const subscriptions = new Map<string, Unsubscribe>();

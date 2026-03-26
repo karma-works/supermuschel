@@ -1,10 +1,6 @@
 import { z } from "zod";
-import { t } from "./trpc.js";
+import { t } from "../trpc.js";
 
-/**
- * Default agent commands keyed by `cmd_<runtime>_<agentType>`.
- * An empty string means "use the automatic default" (no override).
- */
 export const AGENT_COMMAND_DEFAULTS: Record<string, string> = {
   cmd_yolobox_claude: "yolobox claude",
   cmd_yolobox_opencode:
@@ -25,7 +21,6 @@ export const AGENT_COMMAND_DEFAULTS: Record<string, string> = {
 export const ALL_COMMAND_KEYS = Object.keys(AGENT_COMMAND_DEFAULTS);
 
 export const settingsRouter = t.router({
-  /** Return all known command settings, merging stored values over defaults. */
   getCommands: t.procedure.query(({ ctx }) => {
     const rows = ctx.db
       .prepare("SELECT key, value FROM settings WHERE key LIKE 'cmd_%'")

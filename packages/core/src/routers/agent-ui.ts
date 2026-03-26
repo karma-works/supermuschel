@@ -2,7 +2,7 @@ import type { EventEmitter } from "node:events";
 import { observable } from "@trpc/server/observable";
 import { z } from "zod";
 import type { UIEvent } from "@supermuschel/shared";
-import { t } from "./trpc.js";
+import { t } from "../trpc.js";
 
 export function agentUiRouter(eventEmitter: EventEmitter) {
   return t.router({

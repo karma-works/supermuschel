@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { SandboxLevel } from "@supermuschel/shared";
 import { trpc } from "../../lib/trpc.js";
-import { SonderaWizard } from "./SonderaWizard.js";
 
 declare global {
   interface Window {
@@ -49,14 +48,6 @@ const LEVELS: {
     yoloNote: "Agent runs with --dangerously-skip-permissions inside the container.",
   },
   {
-    level: 3,
-    label: "Policy (Sondera)",
-    icon: "🛡️",
-    description:
-      "Cedar policy enforcement + YARA-X signature scanning intercept every agent tool call. Fast and lightweight — works with any agent and any OS. Optional LLM classifier for data-sensitivity tagging.",
-    color: "#a855f7",
-  },
-  {
     level: 4 as SandboxLevel,
     label: "OpenShell",
     icon: "🧊",
@@ -76,39 +67,12 @@ const STATUS_COLORS = {
 
 export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }: Props) {
   const { data: requirements, isLoading } = trpc.sandbox.getRequirements.useQuery({ projectPath });
-  const { data: sonderaStatus } = trpc.sandbox.sondera.getStatus.useQuery();
-  const [showWizard, setShowWizard] = useState(false);
-  const [removeHooksStatus, setRemoveHooksStatus] = useState<"idle" | "done">("idle");
-  const removeHooksMutation = trpc.sandbox.sondera.removeProjectHooks.useMutation({
-    onSuccess: () => {
-      setRemoveHooksStatus("done");
-      setTimeout(() => setRemoveHooksStatus("idle"), 3000);
-    },
-  });
 
   const handleSelect = (level: SandboxLevel, available: boolean) => {
-    // Level 3 (Policy): if not installed, show wizard first
-    if (level === 3 && !sonderaStatus?.installed) {
-      setShowWizard(true);
-      return;
-    }
-    if (!available && level !== 3) return;
+    if (!available) return;
     onSelect(level);
     onClose();
   };
-
-  if (showWizard) {
-    return (
-      <SonderaWizard
-        onComplete={(_modelChoice) => {
-          setShowWizard(false);
-          onSelect(3);
-          onClose();
-        }}
-        onCancel={() => setShowWizard(false)}
-      />
-    );
-  }
 
   return (
     <div
@@ -146,14 +110,9 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
 
         {LEVELS.map((opt) => {
           const diag = requirements?.find((r) => r.level === opt.level);
-          // Level 3 (Policy): available if installed+harness running, OR not yet installed (clickable to setup)
-          const isPolicyLevel = opt.level === 3;
-          const policyInstalled = sonderaStatus?.installed ?? false;
           const isActive = currentLevel === opt.level;
-          const isAvailable = isPolicyLevel
-            ? true // always clickable — wizard handles not-installed case
-            : (diag?.available ?? !isLoading);
-          const isPending = isLoading && !diag && !isPolicyLevel;
+          const isAvailable = diag?.available ?? !isLoading;
+          const isPending = isLoading && !diag;
           const accentColor = opt.color ?? "var(--accent)";
 
           return (
@@ -195,10 +154,6 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
                   {isPending ? (
                     <span style={{ fontSize: 10, color: STATUS_COLORS.loading }}>Checking…</span>
-                  ) : isPolicyLevel && !policyInstalled ? (
-                    <span style={{ fontSize: 10, color: accentColor, fontWeight: 500 }}>
-                      ○ Setup required
-                    </span>
                   ) : isAvailable ? (
                     <span style={{ fontSize: 10, color: STATUS_COLORS.available, fontWeight: 500 }}>
                       ● Available
@@ -245,35 +200,6 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                 </p>
               )}
 
-              {/* Level 3: remove hooks action (shown when installed) */}
-              {opt.level === 3 && policyInstalled && (
-                <div
-                  style={{ marginTop: 8 }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {removeHooksStatus === "done" ? (
-                    <span style={{ fontSize: 10, color: "#22c55e" }}>✓ Hooks removed from project</span>
-                  ) : (
-                    <button
-                      onClick={() => removeHooksMutation.mutate({ projectPath })}
-                      disabled={removeHooksMutation.isPending}
-                      style={{
-                        padding: "3px 8px",
-                        borderRadius: 4,
-                        border: "1px solid rgba(239,68,68,0.35)",
-                        background: "transparent",
-                        color: removeHooksMutation.isPending ? "var(--text-muted)" : "#fca5a5",
-                        cursor: removeHooksMutation.isPending ? "not-allowed" : "pointer",
-                        fontSize: 10,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {removeHooksMutation.isPending ? "Removing…" : "Remove hooks from this project"}
-                    </button>
-                  )}
-                </div>
-              )}
-
               {/* Unavailability reason + fix */}
               {!isPending && !isAvailable && diag?.reason && (
                 <div
@@ -298,7 +224,7 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                   </p>
                   {diag.fixable && diag.fixUrl && diag.fixLabel && (
                     <button
-                      onClick={() => window.shell.openExternal(diag.fixUrl!)}
+                      onClick={() => window.shell?.openExternal(diag.fixUrl!) ?? window.open(diag.fixUrl!, "_blank", "noopener")}
                       style={{
                         marginTop: 8,
                         padding: "5px 12px",

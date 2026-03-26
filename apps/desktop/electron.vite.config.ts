@@ -37,6 +37,7 @@ export default defineConfig({
         // Point workspace packages to their TS source so Vite processes them
         // as native ESM — avoids CJS __exportStar static-analysis failures.
         "@supermuschel/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
+        "@supermuschel/core": path.resolve(__dirname, "../../packages/core/src/index.ts"),
       },
     },
     build: {
