@@ -55,7 +55,7 @@
         { "target": "tar.gz", "arch": ["x64"] }
       ],
       "category": "Development",
-      "icon": "resources/icon.svg",
+      "icon": "resources/icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "publish": {

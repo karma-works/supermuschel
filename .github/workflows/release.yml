@@ -126,7 +126,13 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y --fix-missing python3-setuptools flatpak flatpak-builder
+          sudo apt-get install -y --fix-missing \
+            python3-setuptools flatpak flatpak-builder librsvg2-bin
+
+      - name: Generate PNG icon for Linux
+        run: |
+          rsvg-convert -w 512 -h 512 resources/icon.svg \
+            -o apps/desktop/resources/icon.png
 
       - name: Rebuild native modules for Linux
         run: cd apps/desktop && bun run rebuild
