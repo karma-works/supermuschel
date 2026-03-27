@@ -123,16 +123,19 @@ jobs:
             --target bun-linux-x64
           chmod +x ../../apps/desktop/resources/bin/supermuschel
 
-      - name: Rebuild native modules for Linux
+      - name: Install Linux build dependencies
         run: |
-          sudo apt-get install -y python3-setuptools
-          cd apps/desktop && bun run rebuild
+          sudo apt-get update -y
+          sudo apt-get install -y --fix-missing python3-setuptools flatpak flatpak-builder
+
+      - name: Rebuild native modules for Linux
+        run: cd apps/desktop && bun run rebuild
 
       - name: Build Electron app
         run: cd apps/desktop && bun run build
 
-      - name: Package Linux (tar.gz, x64 only)
-        run: cd apps/desktop && bunx electron-builder --linux tar.gz --x64 --publish never
+      - name: Package Linux (tar.gz + Flatpak, x64 only)
+        run: cd apps/desktop && bunx electron-builder --linux --x64 --publish never
 
       - name: Upload Linux server binaries to release
         uses: softprops/action-gh-release@v2
@@ -141,3 +144,4 @@ jobs:
             apps/server/dist-bin/supermuschel-server-linux-x64.tar.gz
             apps/server/dist-bin/supermuschel-server-linux-arm64.tar.gz
             apps/desktop/dist-app/**/*.tar.gz
+            apps/desktop/dist-app/**/*.flatpak
