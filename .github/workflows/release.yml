@@ -140,8 +140,21 @@ jobs:
       - name: Build Electron app
         run: cd apps/desktop && bun run build
 
-      - name: Package Linux (tar.gz + Flatpak, x64 only)
-        run: cd apps/desktop && bunx electron-builder --linux --x64 --publish never
+      - name: Package Linux tar.gz (x64)
+        run: cd apps/desktop && bunx electron-builder --linux tar.gz --x64 --publish never
+
+      - name: Install Flatpak runtimes
+        run: |
+          flatpak remote-add --if-not-exists --user flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install -y --user flathub \
+            org.freedesktop.Platform//23.08 \
+            org.freedesktop.Sdk//23.08 \
+            org.electronjs.Electron2.BaseApp//23.08
+
+      - name: Package Linux Flatpak (x64)
+        continue-on-error: true
+        run: cd apps/desktop && bunx electron-builder --linux flatpak --x64 --publish never
 
       - name: Upload Linux server binaries to release
         uses: softprops/action-gh-release@v2
