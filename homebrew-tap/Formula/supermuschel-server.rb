@@ -7,11 +7,11 @@ class SupermushelServer < Formula
   on_linux do
     on_arm do
       url "https://github.com/karma-works/supermuschel/releases/download/v#{version}/supermuschel-server-linux-arm64.tar.gz"
-      sha256 "567a5d2532b878dae6dc8756523081a4bb443dceda38ed9ff21d3484cbf7f53e"
+      sha256 "4710d8846a89ea17f56d59bf1050fcd2b7029ed04fd24a6e8e65235d49ff888e"
     end
     on_intel do
       url "https://github.com/karma-works/supermuschel/releases/download/v#{version}/supermuschel-server-linux-x64.tar.gz"
-      sha256 "e33090b45326ff8a869bbec09f4c3447c4aaa12b06346962676cdac3767b1d41"
+      sha256 "9e8676a4743c7a11df54d4b35b133474223598968b88046ad63e85ede45b52ae"
     end
   end
 

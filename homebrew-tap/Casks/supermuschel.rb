@@ -1,7 +1,7 @@
 cask "supermuschel" do
   version "0.1.0"
-  sha256 arm:   "46f280dc06b8c862e578d634f0af1da6ed75f8cbc6e06017fae25bd1056bbfd2",
-         intel: "72abfc188097ff6db9da74e36847ce862830a974fe88fb26ae049294aee34b24"
+  sha256 arm:   "06965948748f2f9b39d4f1e4800c6bd3ce451f4848fb23d7a1fc36c7114c057b",
+         intel: "1acff9d1c8676892ec764a6ed3309fca7361b78a8d61f5852e8634f9915e703c"
 
   url "https://github.com/karma-works/supermuschel/releases/download/v#{version}/Supermuschel-#{version}#{arch == :arm64 ? "-arm64" : ""}.dmg"
   name "Supermuschel"
