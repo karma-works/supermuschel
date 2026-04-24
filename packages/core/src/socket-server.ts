@@ -17,10 +17,7 @@ export class SocketServer {
 
     const socketPath = this.getSocketPath(workspaceId);
 
-    // Clean up stale socket
-    try {
-      await unlink(socketPath);
-    } catch {}
+    try { await unlink(socketPath); } catch {}
 
     const server = createServer((socket) => {
       let buffer = "";
@@ -31,8 +28,7 @@ export class SocketServer {
         for (const line of lines) {
           if (!line.trim()) continue;
           try {
-            const raw = JSON.parse(line);
-            const event = UIEventSchema.parse(raw);
+            const event = UIEventSchema.parse(JSON.parse(line));
             this.onEvent(event);
           } catch (err) {
             console.error("Socket: invalid event:", err);
@@ -46,9 +42,7 @@ export class SocketServer {
       server.once("error", reject);
     });
 
-    // Restrict to owner only
     await chmod(socketPath, 0o600);
-
     this.servers.set(workspaceId, server);
   }
 
@@ -57,13 +51,11 @@ export class SocketServer {
     if (!server) return;
     server.close();
     this.servers.delete(workspaceId);
-    try {
-      await unlink(this.getSocketPath(workspaceId));
-    } catch {}
+    try { await unlink(this.getSocketPath(workspaceId)); } catch {}
   }
 
   async start(): Promise<void> {
-    // Server starts per-workspace; nothing to do globally
+    // Per-workspace; nothing global to start
   }
 
   stop(): void {

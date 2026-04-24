@@ -14,6 +14,8 @@ export function TerminalPane({ agentId, isActive = true }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  // Queue for data received before the xterm terminal is initialized
+  const pendingOutputRef = useRef<string[]>([]);
   const [copyToast, setCopyToast] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -24,7 +26,11 @@ export function TerminalPane({ agentId, isActive = true }: Props) {
     { agentId },
     {
       onData: (data) => {
-        termRef.current?.write(data.data);
+        if (termRef.current) {
+          termRef.current.write(data.data);
+        } else {
+          pendingOutputRef.current.push(data.data);
+        }
       },
     },
   );
@@ -75,6 +81,12 @@ export function TerminalPane({ agentId, isActive = true }: Props) {
 
     termRef.current = term;
     fitAddonRef.current = fitAddon;
+
+    // Flush any output received before the terminal was ready
+    for (const chunk of pendingOutputRef.current) {
+      term.write(chunk);
+    }
+    pendingOutputRef.current = [];
 
     term.onData((data) => {
       writeMutation.mutate({ agentId, data });

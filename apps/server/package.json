@@ -1,0 +1,28 @@
+{
+  "name": "@supermuschel/server",
+  "version": "0.1.0",
+  "scripts": {
+    "predev": "cd ../.. && bun run --silent --cwd packages/shared build && bun run --silent --cwd packages/sandbox build && bun run --silent --cwd packages/agent-api build && bun run --silent --cwd packages/core build",
+    "dev": "tsx src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc",
+    "build:bin": "bun build --compile src/main.ts --outfile dist-bin/supermuschel-server",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supermuschel/agent-api": "workspace:*",
+    "@supermuschel/core": "workspace:*",
+    "@supermuschel/shared": "workspace:*",
+    "@trpc/server": "^11.0.0",
+    "better-sqlite3": "^11.6.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

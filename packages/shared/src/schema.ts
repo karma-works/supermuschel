@@ -18,11 +18,3 @@ export const workspaces = sqliteTable("workspaces", {
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 
-export const sonderaInstall = sqliteTable("sondera_install", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  completedAt: integer("completed_at", { mode: "timestamp" }).notNull(),
-  version: text("version").notNull(),
-  ollamaEnabled: integer("ollama_enabled", { mode: "boolean" }).notNull().default(false),
-});
-
-export type SonderaInstallRow = typeof sonderaInstall.$inferSelect;

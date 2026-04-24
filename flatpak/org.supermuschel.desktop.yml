@@ -1,0 +1,43 @@
+app-id: org.supermuschel.desktop
+runtime: org.freedesktop.Platform
+runtime-version: "23.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "23.08"
+command: supermuschel
+separate-locales: false
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Notifications
+
+modules:
+  - name: supermuschel
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 supermuschel.sh /app/bin/supermuschel
+      - install -Dm644 supermuschel.desktop /app/share/applications/org.supermuschel.desktop.desktop
+      - install -Dm644 icon.svg /app/share/icons/hicolor/scalable/apps/org.supermuschel.desktop.svg
+      - cp -r resources /app/supermuschel/resources
+      - cp -r out /app/supermuschel/out
+      - cp package.json /app/supermuschel/
+    sources:
+      - type: archive
+        url: https://github.com/supermuschel/supermuschel/releases/download/v0.1.0/supermuschel-linux-x64.tar.gz
+        sha256: PLACEHOLDER_SHA256
+        dest: .
+      - type: script
+        dest-filename: supermuschel.sh
+        commands:
+          - exec electron /app/supermuschel "$@"
+      - type: file
+        path: org.supermuschel.desktop.desktop
+      - type: file
+        path: ../resources/icon.svg
+        dest-filename: icon.svg

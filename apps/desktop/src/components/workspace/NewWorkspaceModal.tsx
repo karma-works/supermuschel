@@ -7,26 +7,41 @@ interface Props {
   onCreated?: (workspaceId: string) => void;
 }
 
+const isWeb = typeof window !== "undefined" && !("trpcBridge" in window);
+
 export function NewWorkspaceModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [projectPath, setProjectPath] = useState("");
   const [agentType, setAgentType] = useState<AgentType>("claude");
   const [sandboxLevel, setSandboxLevel] = useState<SandboxLevel>(4);
   const [error, setError] = useState<string | null>(null);
+  // Web directory browser state
+  const [browsingPath, setBrowsingPath] = useState<string | undefined>(undefined);
+  const [showDirBrowser, setShowDirBrowser] = useState(false);
 
   const utils = trpc.useUtils();
   const recentProjects = trpc.workspace.recentProjects.useQuery();
   const pickDirectory = trpc.workspace.pickDirectory.useMutation();
+  const subdirs = trpc.workspace.listSubdirs.useQuery(
+    { path: browsingPath },
+    { enabled: isWeb && showDirBrowser },
+  );
 
-  const fillPath = (path: string) => {
-    setProjectPath(path);
+  const fillPath = (p: string) => {
+    setProjectPath(p);
+    setShowDirBrowser(false);
     if (!name.trim()) {
-      const dirName = path.split("/").filter(Boolean).pop();
+      const dirName = p.split("/").filter(Boolean).pop();
       if (dirName) setName(dirName);
     }
   };
 
   const handleBrowse = async () => {
+    if (isWeb) {
+      setBrowsingPath(undefined);
+      setShowDirBrowser(true);
+      return;
+    }
     const selected = await pickDirectory.mutateAsync();
     if (selected) fillPath(selected);
   };
@@ -65,11 +80,6 @@ export function NewWorkspaceModal({ onClose, onCreated }: Props) {
       level: 2,
       label: "Container",
       description: "Docker/Podman container. Strongest isolation. Requires container runtime.",
-    },
-    {
-      level: 3 as SandboxLevel,
-      label: "Policy (Sondera)",
-      description: "Cedar policy + YARA-X scanning on every agent tool call. Requires Sondera setup.",
     },
     {
       level: 4 as SandboxLevel,
@@ -180,6 +190,47 @@ export function NewWorkspaceModal({ onClose, onCreated }: Props) {
                 Browse...
               </button>
             </div>
+            {showDirBrowser && (
+              <div
+                style={{
+                  marginTop: 6,
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  background: "var(--bg-hover)",
+                  maxHeight: 160,
+                  overflowY: "auto",
+                }}
+              >
+                {subdirs.data && browsingPath !== undefined && (
+                  <div
+                    onClick={() => setBrowsingPath(subdirs.data.current.split("/").slice(0, -1).join("/") || undefined)}
+                    style={{ padding: "5px 10px", cursor: "pointer", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}
+                  >
+                    ← ..
+                  </div>
+                )}
+                {subdirs.isPending && (
+                  <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--text-muted)" }}>Loading...</div>
+                )}
+                {subdirs.data?.entries.map((entry) => (
+                  <div key={entry.path} style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border)" }}>
+                    <div
+                      onClick={() => fillPath(entry.path)}
+                      style={{ flex: 1, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}
+                    >
+                      {entry.name}
+                    </div>
+                    <div
+                      onClick={() => setBrowsingPath(entry.path)}
+                      style={{ padding: "6px 10px", cursor: "pointer", fontSize: 11, color: "var(--text-muted)" }}
+                      title="Browse into"
+                    >
+                      →
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {recentProjects.data && recentProjects.data.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>

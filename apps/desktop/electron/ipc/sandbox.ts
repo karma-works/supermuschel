@@ -35,7 +35,7 @@ export const sandboxRouter = t.router({
     .input(z.object({ projectPath: z.string() }))
     .query(async ({ input }) => {
       const manager = new SandboxManager(input.projectPath, homedir());
-      const levels = [0, 1, 2, 3, 4] as const;
+      const levels = [0, 1, 2, 4] as const;
       const results = await Promise.all(
         levels.map(async (level) => ({
           level,

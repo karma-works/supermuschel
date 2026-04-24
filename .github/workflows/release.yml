@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  # ── macOS DMG ────────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Fix node-pty execute bit
+        run: |
+          find node_modules -path "*/node-pty/prebuilds/darwin-*/spawn-helper" -exec chmod +x {} \;
+
+      - name: Install Python setuptools
+        run: pip3 install --break-system-packages setuptools
+
+      - name: Rebuild native modules
+        run: cd apps/desktop && bun run rebuild
+
+      - name: Create icon.icns from SVG
+        run: |
+          brew install librsvg
+          mkdir -p apps/desktop/resources/icon.iconset
+          for size in 16 32 64 128 256 512; do
+            rsvg-convert -w $size -h $size resources/icon.svg \
+              -o apps/desktop/resources/icon.iconset/icon_${size}x${size}.png
+            rsvg-convert -w $((size*2)) -h $((size*2)) resources/icon.svg \
+              -o apps/desktop/resources/icon.iconset/icon_${size}x${size}@2x.png
+          done
+          iconutil -c icns apps/desktop/resources/icon.iconset \
+            -o apps/desktop/resources/icon.icns
+
+      - name: Build CLI (arm64)
+        run: |
+          cd tools/supermuschel-cli
+          bun build --compile src/main.ts \
+            --outfile ../../apps/desktop/resources/bin/supermuschel \
+            --target bun-darwin-arm64
+          chmod +x ../../apps/desktop/resources/bin/supermuschel
+
+      - name: Build Electron app
+        run: cd apps/desktop && bun run build
+
+      - name: Package DMGs (arm64 + x64)
+        run: cd apps/desktop && bunx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload DMGs to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop/dist-app/*.dmg
+          generate_release_notes: true
+
+  # ── Linux server binary ──────────────────────────────────────────────────────
+  build-linux-server:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Rebuild workspace packages
+        run: |
+          bun run --silent --cwd packages/shared build
+          bun run --silent --cwd packages/sandbox build
+          bun run --silent --cwd packages/agent-api build
+          bun run --silent --cwd packages/core build
+
+      - name: Build web renderer
+        run: cd apps/desktop && bun run build:web
+
+      - name: Compile server binary (x64)
+        run: |
+          cd apps/server
+          bun build --compile src/main.ts \
+            --outfile dist-bin/supermuschel-server-linux-x64 \
+            --target bun-linux-x64
+          chmod +x dist-bin/supermuschel-server-linux-x64
+
+      - name: Compile server binary (arm64)
+        run: |
+          cd apps/server
+          bun build --compile src/main.ts \
+            --outfile dist-bin/supermuschel-server-linux-arm64 \
+            --target bun-linux-arm64
+          chmod +x dist-bin/supermuschel-server-linux-arm64
+
+      - name: Bundle web static assets
+        run: |
+          cp -r apps/desktop/out/web-renderer apps/server/dist-bin/web
+          cd apps/server/dist-bin
+          tar czf supermuschel-server-linux-x64.tar.gz supermuschel-server-linux-x64 web
+          tar czf supermuschel-server-linux-arm64.tar.gz supermuschel-server-linux-arm64 web
+
+      - name: Build supermuschel CLI for Linux
+        run: |
+          cd tools/supermuschel-cli
+          bun build --compile src/main.ts \
+            --outfile ../../apps/desktop/resources/bin/supermuschel \
+            --target bun-linux-x64
+          chmod +x ../../apps/desktop/resources/bin/supermuschel
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --fix-missing \
+            python3-setuptools flatpak flatpak-builder librsvg2-bin
+
+      - name: Generate PNG icon for Linux
+        run: |
+          rsvg-convert -w 512 -h 512 resources/icon.svg \
+            -o apps/desktop/resources/icon.png
+
+      - name: Rebuild native modules for Linux
+        run: cd apps/desktop && bun run rebuild
+
+      - name: Build Electron app
+        run: cd apps/desktop && bun run build
+
+      - name: Package Linux tar.gz (x64)
+        run: cd apps/desktop && bunx electron-builder --linux tar.gz --x64 --publish never
+
+      - name: Install Flatpak runtimes
+        run: |
+          flatpak remote-add --if-not-exists --user flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install -y --user flathub \
+            org.freedesktop.Platform//23.08 \
+            org.freedesktop.Sdk//23.08 \
+            org.electronjs.Electron2.BaseApp//23.08
+
+      - name: Package Linux Flatpak (x64)
+        continue-on-error: true
+        run: cd apps/desktop && bunx electron-builder --linux flatpak --x64 --publish never
+
+      - name: Upload Linux server binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/server/dist-bin/supermuschel-server-linux-x64.tar.gz
+            apps/server/dist-bin/supermuschel-server-linux-arm64.tar.gz
+            apps/desktop/dist-app/**/*.tar.gz
+            apps/desktop/dist-app/**/*.flatpak

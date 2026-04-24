@@ -157,7 +157,8 @@ export class AgentManager extends EventEmitter {
         );
       }
       agent.status = exitCode === 0 ? "stopped" : "crashed";
-      this.agents.delete(id);
+      // Keep agent in map for a grace period so late-joining subscribers can replay the buffer
+      setTimeout(() => this.agents.delete(id), 10_000);
       this.emit("exit", { agentId: id, workspaceId, exitCode });
     });
 
