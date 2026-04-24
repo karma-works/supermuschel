@@ -76,15 +76,22 @@ const STATUS_COLORS = {
 
 export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }: Props) {
   const { data: requirements, isLoading } = trpc.sandbox.getRequirements.useQuery({ projectPath });
-  const { data: sonderaStatus } = trpc.sandbox.sondera.getStatus.useQuery();
+  const { data: sonderaStatus } = trpc.sandbox.sondera.getStatus.useQuery(undefined);
   const [showWizard, setShowWizard] = useState(false);
   const [removeHooksStatus, setRemoveHooksStatus] = useState<"idle" | "done">("idle");
-  const removeHooksMutation = trpc.sandbox.sondera.removeProjectHooks.useMutation({
-    onSuccess: () => {
-      setRemoveHooksStatus("done");
-      setTimeout(() => setRemoveHooksStatus("idle"), 3000);
-    },
-  });
+  const removeHooksMutation = trpc.sandbox.sondera.removeProjectHooks.useMutation({});
+
+  const handleRemoveHooks = () => {
+    removeHooksMutation.mutate(
+      { projectPath },
+      {
+        onSuccess: () => {
+          setRemoveHooksStatus("done");
+          setTimeout(() => setRemoveHooksStatus("idle"), 3000);
+        },
+      },
+    );
+  };
 
   const handleSelect = (level: SandboxLevel, available: boolean) => {
     // Level 3 (Policy): if not installed, show wizard first
@@ -255,7 +262,7 @@ export function SandboxSelector({ currentLevel, projectPath, onSelect, onClose }
                     <span style={{ fontSize: 10, color: "#22c55e" }}>✓ Hooks removed from project</span>
                   ) : (
                     <button
-                      onClick={() => removeHooksMutation.mutate({ projectPath })}
+                      onClick={handleRemoveHooks}
                       disabled={removeHooksMutation.isPending}
                       style={{
                         padding: "3px 8px",
