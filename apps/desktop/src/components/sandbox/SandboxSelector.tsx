@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { SandboxLevel } from "@supermuschel/shared";
 import { trpc } from "../../lib/trpc.js";
 

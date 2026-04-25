@@ -151,6 +151,11 @@ export class AgentManager extends EventEmitter {
     });
 
     terminal.onExit(({ exitCode }) => {
+      if (sandboxLevel === 4) {
+        sandboxManager.cleanup(4).catch((err) =>
+          console.warn("[agent] failed to cleanup sandbox backend:", err),
+        );
+      }
       agent.status = exitCode === 0 ? "stopped" : "crashed";
       // Keep agent in map for a grace period so late-joining subscribers can replay the buffer
       setTimeout(() => this.agents.delete(id), 10_000);

@@ -35,7 +35,7 @@ mkdirSync(dbDir, { recursive: true });
 const dbPath = values.dbpath ?? path.join(dbDir, "server.db");
 const staticDir =
   values["static-dir"] ??
-  path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../desktop/out/web-renderer");
+  path.resolve(__dirname, "../../desktop/out/web-renderer");
 const supermushelBinDir = path.join(homedir(), ".supermuschel", "bin");
 
 // ─── Core services ─────────────────────────────────────────────────────────────

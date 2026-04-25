@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import type { SandboxBackend, SandboxDiagnosis, SpawnConfig } from "./index.js";
 
@@ -25,7 +25,7 @@ function generatePolicy(projectPath: string, homePath: string): string {
     "  user: sandbox",
     "  group: sandbox",
   ];
-  return lines.join("\n") + "\n";
+  return `${lines.join("\n")}\n`;
 }
 
 export class OpenShellBackend implements SandboxBackend {
@@ -33,6 +33,7 @@ export class OpenShellBackend implements SandboxBackend {
   readonly name = "OpenShell";
 
   private policyPath: string | null = null;
+  private policyDir: string | null = null;
 
   constructor(
     private readonly projectPath: string,
@@ -80,7 +81,10 @@ export class OpenShellBackend implements SandboxBackend {
     if (this.policyPath) return this.policyPath;
     const tmpDir = mkdtempSync(join(tmpdir(), "sm-os-"));
     const p = join(tmpDir, "openshell-policy.yaml");
-    writeFileSync(p, generatePolicy(this.projectPath, this.homePath), { mode: 0o600 });
+    writeFileSync(p, generatePolicy(this.projectPath, this.homePath), {
+      mode: 0o600,
+    });
+    this.policyDir = tmpDir;
     this.policyPath = p;
     return p;
   }
@@ -92,17 +96,26 @@ export class OpenShellBackend implements SandboxBackend {
     const agentBin = basename(config.cmd);
     return {
       cmd: "openshell",
-      args: ["sandbox", "create", "--policy", policyPath, "--", agentBin, ...config.args],
+      args: [
+        "sandbox",
+        "create",
+        "--policy",
+        policyPath,
+        "--",
+        agentBin,
+        ...config.args,
+      ],
       opts: config.opts,
     };
   }
 
   async cleanup(): Promise<void> {
-    if (this.policyPath) {
+    if (this.policyDir) {
       try {
-        rmSync(this.policyPath, { recursive: true, force: true });
+        rmSync(this.policyDir, { recursive: true, force: true });
       } catch {}
-      this.policyPath = null;
     }
+    this.policyDir = null;
+    this.policyPath = null;
   }
 }
